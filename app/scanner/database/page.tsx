@@ -55,21 +55,47 @@ function cachedCaScoCount(): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function redactedDatabaseUrl(): string {
+  const raw = process.env.DATABASE_URL?.trim();
+  if (!raw) return "-";
+  if (raw.startsWith("file:")) return raw;
+  try {
+    const url = new URL(raw);
+    if (url.username) url.username = "***";
+    if (url.password) url.password = "***";
+    return url.toString();
+  } catch {
+    return raw.replace(/\/\/([^:@/]+):([^@/]+)@/, "//***:***@");
+  }
+}
+
+function sourceQueryErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Scanner database is unavailable.";
+}
+
 export default async function DatabaseStatusPage() {
   const caScoCached = cachedCaScoCount();
-  const rows = (
-    await Promise.all(
-      NON_CA_SCO_SOURCES.map((source) =>
-        prisma.$queryRawUnsafe<SourceRow[]>(
+  const queryResults = await Promise.all(
+    NON_CA_SCO_SOURCES.map((source) =>
+      prisma
+        .$queryRawUnsafe<SourceRow[]>(
           `SELECT ? AS source, COUNT(*) AS n, MAX(imported_at) AS lastImportedAt
            FROM source_records
            WHERE source = ?`,
           source,
           source,
-        ),
-      ),
-    )
-  ).flat();
+        )
+        .then((rows) => ({ rows, error: null as string | null }))
+        .catch((error: unknown) => ({
+          rows: [],
+          error: sourceQueryErrorMessage(error),
+        })),
+    ),
+  );
+  const rows = queryResults.flatMap((result) => result.rows);
+  const databaseError = queryResults.find((result) => result.error)?.error ?? null;
 
   const sources = [
     ...(caScoCached
@@ -96,6 +122,14 @@ export default async function DatabaseStatusPage() {
           Database Status
         </h1>
       </div>
+
+      {databaseError ? (
+        <section className="border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          The scanner database is not available in this environment. Local
+          scanner data and imported source indexes are not automatically present
+          on Vercel.
+        </section>
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2">
         <div className="border border-[#b8b8b4] bg-white p-4">
@@ -168,7 +202,7 @@ export default async function DatabaseStatusPage() {
               Database
             </dt>
             <dd className="break-all font-mono text-xs text-neutral-900">
-              {process.env.DATABASE_URL || "-"}
+              {redactedDatabaseUrl()}
             </dd>
           </div>
           <div>

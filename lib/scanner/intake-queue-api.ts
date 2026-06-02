@@ -31,6 +31,23 @@ function coerceQueueItem(raw: unknown): ScannerIntakeQueueItem | null {
   };
 }
 
+function intakeQueueAuthHeader(): string | null {
+  const explicit = process.env.CLAIMS_INTAKE_BASIC_AUTH?.trim();
+  if (explicit) {
+    return explicit.startsWith("Basic ") ? explicit : `Basic ${explicit}`;
+  }
+
+  const username =
+    process.env.CLAIMS_INTAKE_USERNAME?.trim() ||
+    process.env.CMS_ADMIN_USERNAME?.trim();
+  const password =
+    process.env.CLAIMS_INTAKE_PASSWORD?.trim() ||
+    process.env.CMS_ADMIN_PASSWORD?.trim();
+  if (!username || !password) return null;
+
+  return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
+}
+
 /**
  * Intakes that need an unclaimed-property scan (claims-intake-system API).
  */
@@ -41,11 +58,15 @@ export async function fetchScannerIntakeQueue(): Promise<
   const base =
     process.env.CLAIMS_INTAKE_BASE_URL?.trim() || "http://localhost:3000";
   const url = `${base.replace(/\/$/, "")}/api/scanner/intake-queue`;
+  const authHeader = intakeQueueAuthHeader();
 
   try {
     const res = await fetch(url, {
       cache: "no-store",
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        ...(authHeader ? { Authorization: authHeader } : {}),
+      },
     });
 
     if (!res.ok) {

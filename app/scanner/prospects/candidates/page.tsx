@@ -198,6 +198,14 @@ export default async function CandidateDatabasePage({
         </div>
       </section>
 
+      {!stats.exists ? (
+        <section className="border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          The business-candidate index is not available in this environment.
+          The local scanner uses generated database tables that are not
+          automatically copied to Vercel.
+        </section>
+      ) : null}
+
       <form className="border border-[#b8b8b4] bg-white p-4 text-sm">
         <div className="grid gap-3 md:grid-cols-[1fr_10rem_1fr_1fr_9rem_9rem_7rem_auto]">
           <label>

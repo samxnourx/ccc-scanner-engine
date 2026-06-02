@@ -133,18 +133,39 @@ function QueueTable({
   );
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Scanner database unavailable.";
+}
+
 export default async function ScannerQueuePage() {
   const result = await fetchScannerIntakeQueue();
-  if (result.ok) await saveIntakeQueueSnapshots(result.intakes);
-  const completedProgresses = await getCompletedIntakeScanProgresses();
-  const progressByIntakeId = result.ok
+  const scanProgressErrors: string[] = [];
+  if (result.ok) {
+    const snapshotResult = await saveIntakeQueueSnapshots(result.intakes)
+      .then(() => null)
+      .catch(errorMessage);
+    if (snapshotResult) scanProgressErrors.push(snapshotResult);
+  }
+  const completedResult = await getCompletedIntakeScanProgresses()
+    .then((rows) => ({ rows, error: null as string | null }))
+    .catch((error: unknown) => ({ rows: [], error: errorMessage(error) }));
+  if (completedResult.error) scanProgressErrors.push(completedResult.error);
+  const completedProgresses = completedResult.rows;
+  const progressResult = result.ok
     ? await getIntakeScanProgressMap([
         ...new Set([
           ...result.intakes.map((row) => row.intakeId),
           ...completedProgresses.map((progress) => progress.intakeId),
         ]),
       ])
-    : new Map();
+        .then((map) => ({ map, error: null as string | null }))
+        .catch((error: unknown) => ({
+          map: new Map(),
+          error: errorMessage(error),
+        }))
+    : { map: new Map(), error: null };
+  if (progressResult.error) scanProgressErrors.push(progressResult.error);
+  const progressByIntakeId = progressResult.map;
   const activeIntakes = result.ok
     ? result.intakes.filter(
         (row) => !isIntakeScanCompleted(progressByIntakeId.get(row.intakeId)),
@@ -188,6 +209,13 @@ export default async function ScannerQueuePage() {
         </div>
       ) : (
         <div className="space-y-6">
+          {scanProgressErrors.length > 0 ? (
+            <div className="border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              Scan progress storage is not available in this environment. Live
+              queue rows can still be shown when the intake endpoint is
+              available, but saved scan progress requires the scanner database.
+            </div>
+          ) : null}
           <section className="space-y-2">
             <h2 className="text-base font-semibold tracking-tight">
               Active scan queue
