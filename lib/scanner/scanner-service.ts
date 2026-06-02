@@ -91,6 +91,27 @@ function claimsIntakeBaseUrl(): string {
   return process.env.CLAIMS_INTAKE_BASE_URL?.trim() || "http://localhost:3000";
 }
 
+function claimsIntakeAuthHeaders(): Record<string, string> {
+  const explicit = process.env.CLAIMS_INTAKE_BASIC_AUTH?.trim();
+  if (explicit) {
+    return {
+      Authorization: explicit.startsWith("Basic ") ? explicit : `Basic ${explicit}`,
+    };
+  }
+
+  const username =
+    process.env.CLAIMS_INTAKE_USERNAME?.trim() ||
+    process.env.CMS_ADMIN_USERNAME?.trim();
+  const password =
+    process.env.CLAIMS_INTAKE_PASSWORD?.trim() ||
+    process.env.CMS_ADMIN_PASSWORD?.trim();
+  if (!username || !password) return {};
+
+  return {
+    Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`,
+  };
+}
+
 /**
  * Tell claims-intake-system that a scanner run finished (including zero matches).
  * Failures are non-fatal for the scanner UI; callers show a warning.
@@ -109,7 +130,10 @@ export async function notifyIntakeScanRun(
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...claimsIntakeAuthHeaders(),
+      },
       body: JSON.stringify({
         source: "ccc-scanner-engine",
         matchCount,
@@ -229,7 +253,10 @@ export async function sendMatchesToIntake(
 
   return fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...claimsIntakeAuthHeaders(),
+    },
     body: JSON.stringify({ matches }),
   });
 }
