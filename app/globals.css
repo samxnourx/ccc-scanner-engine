@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  --background: #e8e8e6;
+  --foreground: #1a1a1a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    "Helvetica Neue", sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* When printing a recovery report, hide app chrome and use a document-style page. */
+@media print {
+  @page {
+    size: letter;
+    margin: 0.5in;
+  }
+
+  body:has(.print-report-root) header.app-site-header {
+    display: none !important;
+  }
+
+  body:has(.print-report-root) .app-content-shell {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body:has(.print-report-root) .app-root-shell {
+    background: #fff !important;
+  }
+}

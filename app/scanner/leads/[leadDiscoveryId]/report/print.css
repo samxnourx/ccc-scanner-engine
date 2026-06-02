@@ -1,0 +1,59 @@
+/* Printable Recovery Opportunity Report — scoped via .print-report-root */
+
+.print-report-root.print-document {
+  max-width: 8.5in;
+  margin: 0 auto;
+  font-family: Georgia, "Times New Roman", Times, serif;
+  line-height: 1.5;
+}
+
+.print-document .ror-serif-heading {
+  font-family: Georgia, "Times New Roman", Times, serif;
+}
+
+.ror-report-header-block,
+.ror-about-section,
+.ror-next-steps,
+.ror-required-disclosures {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.ror-agency-block {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.ror-agency-section > h2 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.ror-match-table thead {
+  display: table-header-group;
+}
+
+@media print {
+  .print-toolbar,
+  .no-print {
+    display: none !important;
+  }
+
+  .print-report-root.print-document {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-shadow: none !important;
+  }
+
+  .ror-page-two {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  body {
+    background: white !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

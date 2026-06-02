@@ -1,0 +1,184 @@
+// SQLite MVP for indexed CA SCO source_records (Phase 1 import only).
+// DATABASE_URL example (relative to this file): file:../data/scanner.db
+// Bulk import (millions of rows): if Prisma reports P1008 socket timeout on createMany,
+// raise DATABASE_URL timeout, e.g. file:../data/scanner.db?socket_timeout=0 (or a large ms value).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model SourceRecord {
+  id                  Int      @id @default(autoincrement())
+  source              String
+  propertyId          String   @map("property_id")
+  ownerName           String   @map("owner_name")
+  ownerNameNormalized String   @map("owner_name_normalized")
+  holderName          String   @map("holder_name")
+  amount              String?
+  address             String?
+  city                String?
+  state               String?
+  zipCode             String?  @map("zip_code")
+  propertyType        String?  @map("property_type")
+  rawJson             String   @map("raw_json")
+  importedAt          DateTime @default(now()) @map("imported_at")
+
+  // B-tree on normalized owner: still useful when FTS is absent (Prisma fallback),
+  // prefix-style scans, and any future non-FTS queries; primary token narrowing uses FTS5.
+  @@index([ownerNameNormalized])
+  @@index([source])
+  @@index([source, ownerNameNormalized])
+  @@index([holderName])
+  @@index([source, holderName])
+  @@index([propertyId])
+  // Groups rows by catalog source + external property id (dedupe / joins).
+  @@index([source, propertyId])
+  @@map("source_records")
+}
+
+/// Lead Scanner → CCC batch import; businesses scanned against `source_records`, then human-reviewed before outreach.
+model LeadScanBatch {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  createdAt           DateTime @default(now()) @map("created_at")
+  /// imported | scanning | review_needed | completed
+  status              String   @default("imported")
+  totalBusinesses     Int      @default(0) @map("total_businesses")
+  scannedCount        Int      @default(0) @map("scanned_count")
+  matchesFoundCount   Int      @default(0) @map("matches_found_count")
+  approvedEmailCount Int @default(0) @map("approved_email_count")
+  sentEmailCount      Int      @default(0) @map("sent_email_count")
+
+  businesses LeadBusiness[]
+  matches    LeadBusinessMatch[]
+
+  @@map("lead_scan_batches")
+}
+
+model LeadBusiness {
+  id             Int    @id @default(autoincrement())
+  batchId        Int    @map("batch_id")
+  batch          LeadScanBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  externalLeadId String? @map("external_lead_id")
+  businessName   String @map("business_name")
+  email          String
+  /// JSON array of all deduped emails (primary first); optional for legacy rows.
+  emailsJson     String? @map("emails_json")
+  /// Original multi-email string from Lead Scanner if provided.
+  emailsRaw      String? @map("emails_raw")
+  website        String @default("")
+  phone          String?
+  address        String?
+  city           String?
+  state          String?
+  /// e.g. lead_scanner
+  source         String @default("lead_scanner")
+  emailQuality   String? @map("email_quality")
+  websiteFound   Boolean? @map("website_found")
+  importedAt     DateTime @default(now()) @map("imported_at")
+  lastScannedAt  DateTime? @map("last_scanned_at")
+  /// not_scanned | scan_pending | matches_found | no_matches | approved_for_email | email_sent | rejected | do_not_contact
+  outreachStatus String @default("not_scanned") @map("outreach_status")
+  outreachEmailTo      String?   @map("outreach_email_to")
+  outreachEmailSubject String?   @map("outreach_email_subject")
+  outreachEmailText    String?   @map("outreach_email_text")
+  outreachPortalUrl    String?   @map("outreach_portal_url")
+  outreachIntakeId     String?   @map("outreach_intake_id")
+  outreachSentAt       DateTime? @map("outreach_sent_at")
+  notes          String @default("")
+
+  enrichedAt          DateTime? @map("enriched_at")
+  enrichmentSource    String?   @map("enrichment_source")
+  /// not_requested | found_local | found_google | not_found | error
+  enrichmentStatus    String    @default("not_requested") @map("enrichment_status")
+  enrichmentMessage   String    @default("") @map("enrichment_message")
+  googleMapsUrl       String?   @map("google_maps_url")
+
+  matches LeadBusinessMatch[]
+
+  @@index([batchId])
+  @@map("lead_businesses")
+}
+
+model LeadBusinessMatch {
+  id                Int    @id @default(autoincrement())
+  leadBusinessId    Int    @map("lead_business_id")
+  leadBusiness      LeadBusiness @relation(fields: [leadBusinessId], references: [id], onDelete: Cascade)
+  batchId           Int    @map("batch_id")
+  batch             LeadScanBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  sourceRecordId    Int?   @map("source_record_id")
+  sourceName        String @map("source_name")
+  reportedOwnerName String @map("reported_owner_name")
+  holderName        String @map("holder_name")
+  propertyId        String @map("property_id")
+  amount            String?
+  reportedAddress   String @map("reported_address")
+  accountType       String? @map("account_type")
+  confidence        String
+  matchScore        Float? @map("match_score")
+  notes             String @default("")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([batchId])
+  @@index([leadBusinessId])
+  @@map("lead_business_matches")
+}
+
+/// Local progress state for intake-system unclaimed-property scan requests.
+model IntakeScanProgress {
+  intakeId      String    @id @map("intake_id")
+  /// scan_pending | review_pending | no_matches | matches_sent
+  status        String    @default("scan_pending")
+  queryJson     String?   @map("query_json")
+  matchesJson   String    @default("[]") @map("matches_json")
+  matchCount    Int       @default(0) @map("match_count")
+  selectedCount Int       @default(0) @map("selected_count")
+  scanRanAt     DateTime? @map("scan_ran_at")
+  resultsSentAt DateTime? @map("results_sent_at")
+  noMatchReason String    @default("") @map("no_match_reason")
+  intakeJson     String?   @map("intake_json")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @map("updated_at")
+
+  @@map("intake_scan_progress")
+}
+
+/// Scanner-owned lead outreach awaiting recipient property confirmation.
+model PendingOutreachLead {
+  id                    Int      @id @default(autoincrement())
+  token                 String   @unique
+  status                String   @default("pending")
+  leadSource            String   @map("lead_source")
+  leadId                String   @map("lead_id")
+  businessName          String   @map("business_name")
+  recipientEmails       String   @map("recipient_emails")
+  importedEmail         String   @default("") @map("imported_email")
+  phone                 String   @default("")
+  website               String   @default("")
+  externalLeadId        String   @default("") @map("external_lead_id")
+  scannerBatchId        String   @default("") @map("scanner_batch_id")
+  scannerLeadBusinessId String   @default("") @map("scanner_lead_business_id")
+  selectedMatchesJson   String   @map("selected_matches_json")
+  subject               String   @default("")
+  messageId             String   @default("") @map("message_id")
+  sentAt                String   @default("") @map("sent_at")
+  confirmedMatchesJson  String   @default("[]") @map("confirmed_matches_json")
+  rejectedMatchesJson   String   @default("[]") @map("rejected_matches_json")
+  confirmedAt           String   @default("") @map("confirmed_at")
+  cmsClaimId            String   @default("") @map("cms_claim_id")
+  cmsIntakeId           String   @default("") @map("cms_intake_id")
+  cmsDashboardUrl       String   @default("") @map("cms_dashboard_url")
+  cmsResponseJson       String   @default("") @map("cms_response_json")
+  conversionError       String   @default("") @map("conversion_error")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @map("updated_at")
+
+  @@index([leadSource, leadId])
+  @@index([status])
+  @@map("pending_outreach_leads")
+}
