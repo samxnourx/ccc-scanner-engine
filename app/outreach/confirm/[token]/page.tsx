@@ -1,9 +1,11 @@
-import Link from "next/link";
-
 import { submitScannerOutreachConfirmationAction } from "@/app/outreach/confirm/actions";
 import { getPendingOutreachLeadByToken } from "@/lib/scanner/pending-outreach-store";
 
 export const dynamic = "force-dynamic";
+export const metadata = {
+  title: "Confirm Possible Unclaimed Property | Sami Nouri Law Firm",
+  description: "Review possible unclaimed property records identified by Sami Nouri Law Firm.",
+};
 
 function cell(value: string | null | undefined): string {
   const v = String(value ?? "").trim();
@@ -15,13 +17,13 @@ function resultCopy(result: string, lead: Awaited<ReturnType<typeof getPendingOu
   if (result === "converted") {
     return {
       title: "Property confirmation received",
-      body: "Thank you. Your confirmed properties were sent to Sami Nouri Law Firm for next steps.",
+      body: "Thank you. Sami Nouri Law Firm will review your confirmed properties and follow up with the investigator agreement and next steps needed to move forward.",
     };
   }
   if (result === "no_confirmed") {
     return {
       title: "Property confirmation received",
-      body: "Thank you. You did not confirm any of the listed properties, so no claim file was opened.",
+      body: "Thank you. Because none of the listed properties were confirmed, no claim file was opened. No further action is needed unless Sami Nouri Law Firm contacts you with a follow-up question.",
     };
   }
   return null;
@@ -62,13 +64,6 @@ export default async function ScannerOutreachConfirmationPage({
           {done?.body ??
             "This property confirmation has already been submitted."}
         </p>
-        {lead.cmsDashboardUrl ? (
-          <p className="mt-6 text-sm">
-            <Link className="underline" href={lead.cmsDashboardUrl}>
-              Open client dashboard
-            </Link>
-          </p>
-        ) : null}
       </main>
     );
   }
