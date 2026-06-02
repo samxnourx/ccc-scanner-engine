@@ -154,9 +154,11 @@ function normalizeMatches(
   }));
 }
 
-function parseJsonArray<T>(raw: string, fallback: T[] = []): T[] {
+function parseJsonArray<T>(raw: unknown, fallback: T[] = []): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  if (raw && typeof raw === "object") return fallback;
   try {
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed = JSON.parse(text(raw)) as unknown;
     return Array.isArray(parsed) ? (parsed as T[]) : fallback;
   } catch {
     return fallback;
@@ -192,18 +194,12 @@ function rowToPending(row: Record<string, unknown>): PendingOutreachLead {
     externalLeadId: text(row.external_lead_id),
     scannerBatchId: text(row.scanner_batch_id),
     scannerLeadBusinessId: text(row.scanner_lead_business_id),
-    selectedMatches: parseJsonArray<PendingOutreachMatch>(
-      text(row.selected_matches_json),
-    ),
+    selectedMatches: parseJsonArray<PendingOutreachMatch>(row.selected_matches_json),
     subject: text(row.subject),
     messageId: text(row.message_id),
     sentAt: text(row.sent_at),
-    confirmedMatches: parseJsonArray<PendingOutreachMatch>(
-      text(row.confirmed_matches_json),
-    ),
-    rejectedMatches: parseJsonArray<PendingOutreachMatch>(
-      text(row.rejected_matches_json),
-    ),
+    confirmedMatches: parseJsonArray<PendingOutreachMatch>(row.confirmed_matches_json),
+    rejectedMatches: parseJsonArray<PendingOutreachMatch>(row.rejected_matches_json),
     confirmedAt: text(row.confirmed_at),
     cmsClaimId: text(row.cms_claim_id),
     cmsIntakeId: text(row.cms_intake_id),
@@ -215,13 +211,127 @@ function rowToPending(row: Record<string, unknown>): PendingOutreachLead {
   };
 }
 
+function supabaseConfig(): { url: string; key: string } | null {
+  const url = process.env.SUPABASE_URL?.trim();
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    process.env.SUPABASE_SERVICE_KEY?.trim();
+  if (!url || !key) return null;
+  return { url: url.replace(/\/$/, ""), key };
+}
+
+function pendingOutreachSupabaseTableUrl(token?: string): string {
+  const cfg = supabaseConfig();
+  if (!cfg) throw new Error("Supabase pending outreach storage is not configured.");
+  const base = `${cfg.url}/rest/v1/pending_outreach_leads`;
+  return token ? `${base}?token=eq.${encodeURIComponent(token)}` : base;
+}
+
+async function supabaseRequest<T>(
+  pathOrUrl: string,
+  init: RequestInit,
+): Promise<T> {
+  const cfg = supabaseConfig();
+  if (!cfg) throw new Error("Supabase pending outreach storage is not configured.");
+  const url = pathOrUrl.startsWith("http")
+    ? pathOrUrl
+    : `${cfg.url}/rest/v1/${pathOrUrl.replace(/^\//, "")}`;
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      apikey: cfg.key,
+      Authorization: `Bearer ${cfg.key}`,
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(
+      `Supabase pending outreach request failed (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ""}`,
+    );
+  }
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
+}
+
+function dbValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value);
+}
+
+function createPendingOutreachRow(input: CreatePendingOutreachLeadInput, token: string) {
+  const matches = normalizeMatches(input.selectedMatches);
+  return {
+    token,
+    status: "pending",
+    lead_source: input.leadSource,
+    lead_id: input.leadId,
+    business_name: input.businessName,
+    recipient_emails: input.recipientEmails.join("\n"),
+    imported_email: input.importedEmail ?? "",
+    phone: input.phone ?? "",
+    website: input.website ?? "",
+    external_lead_id: input.externalLeadId ?? "",
+    scanner_batch_id: dbValue(input.scannerBatchId),
+    scanner_lead_business_id: dbValue(input.scannerLeadBusinessId),
+    selected_matches_json: matches,
+  };
+}
+
+async function insertPendingOutreachSupabase(
+  input: CreatePendingOutreachLeadInput,
+  token: string,
+): Promise<void> {
+  await supabaseRequest<Record<string, unknown>[]>(
+    pendingOutreachSupabaseTableUrl(),
+    {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(createPendingOutreachRow(input, token)),
+    },
+  );
+}
+
+async function patchPendingOutreachSupabase(
+  token: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  await supabaseRequest<Record<string, unknown>[]>(
+    pendingOutreachSupabaseTableUrl(token),
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        ...patch,
+        updated_at: new Date().toISOString(),
+      }),
+    },
+  );
+}
+
+async function getPendingOutreachSupabase(
+  token: string,
+): Promise<PendingOutreachLead | null> {
+  const rows = await supabaseRequest<Record<string, unknown>[]>(
+    `${pendingOutreachSupabaseTableUrl(token)}&limit=1`,
+    { method: "GET" },
+  );
+  const row = rows[0];
+  return row ? rowToPending(row) : null;
+}
+
 export async function createPendingOutreachLead(
   input: CreatePendingOutreachLeadInput,
 ): Promise<{ token: string; confirmationUrl: string }> {
-  await ensurePendingOutreachTable();
   const token = randomBytes(24).toString("hex");
-  const matches = normalizeMatches(input.selectedMatches);
+  if (supabaseConfig()) {
+    await insertPendingOutreachSupabase(input, token);
+    return { token, confirmationUrl: pendingOutreachConfirmationUrl(token) };
+  }
 
+  await ensurePendingOutreachTable();
+  const row = createPendingOutreachRow(input, token);
   await prisma.$executeRawUnsafe(
     `INSERT INTO pending_outreach_leads (
        token,
@@ -240,22 +350,17 @@ export async function createPendingOutreachLead(
        updated_at
      ) VALUES (?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
     token,
-    input.leadSource,
-    input.leadId,
-    input.businessName,
-    input.recipientEmails.join("\n"),
-    input.importedEmail ?? "",
-    input.phone ?? "",
-    input.website ?? "",
-    input.externalLeadId ?? "",
-    input.scannerBatchId === null || input.scannerBatchId === undefined
-      ? ""
-      : String(input.scannerBatchId),
-    input.scannerLeadBusinessId === null ||
-      input.scannerLeadBusinessId === undefined
-      ? ""
-      : String(input.scannerLeadBusinessId),
-    JSON.stringify(matches),
+    row.lead_source,
+    row.lead_id,
+    row.business_name,
+    row.recipient_emails,
+    row.imported_email,
+    row.phone,
+    row.website,
+    row.external_lead_id,
+    row.scanner_batch_id,
+    row.scanner_lead_business_id,
+    JSON.stringify(row.selected_matches_json),
   );
 
   return { token, confirmationUrl: pendingOutreachConfirmationUrl(token) };
@@ -264,6 +369,16 @@ export async function createPendingOutreachLead(
 export async function markPendingOutreachEmailSent(
   input: MarkEmailSentInput,
 ): Promise<void> {
+  if (supabaseConfig()) {
+    await patchPendingOutreachSupabase(input.token, {
+      status: "email_sent",
+      subject: input.subject,
+      message_id: input.messageId ?? "",
+      sent_at: (input.sentAt ?? new Date()).toISOString(),
+    });
+    return;
+  }
+
   await ensurePendingOutreachTable();
   await prisma.$executeRawUnsafe(
     `UPDATE pending_outreach_leads
@@ -284,6 +399,14 @@ export async function markPendingOutreachEmailFailed(
   token: string,
   error: string,
 ): Promise<void> {
+  if (supabaseConfig()) {
+    await patchPendingOutreachSupabase(token, {
+      status: "email_failed",
+      conversion_error: error.slice(0, 1000),
+    });
+    return;
+  }
+
   await ensurePendingOutreachTable();
   await prisma.$executeRawUnsafe(
     `UPDATE pending_outreach_leads
@@ -299,6 +422,8 @@ export async function markPendingOutreachEmailFailed(
 export async function getPendingOutreachLeadByToken(
   token: string,
 ): Promise<PendingOutreachLead | null> {
+  if (supabaseConfig()) return getPendingOutreachSupabase(token.trim());
+
   await ensurePendingOutreachTable();
   const rows = (await prisma.$queryRawUnsafe(
     `SELECT * FROM pending_outreach_leads WHERE token = ? LIMIT 1`,
@@ -312,7 +437,6 @@ export async function savePendingOutreachSubmission(args: {
   token: string;
   responses: PendingOutreachResponse[];
 }): Promise<PendingOutreachLead> {
-  await ensurePendingOutreachTable();
   const existing = await getPendingOutreachLeadByToken(args.token);
   if (!existing) throw new Error("Invalid or expired confirmation link.");
   if (existing.status === "converted") return existing;
@@ -335,6 +459,18 @@ export async function savePendingOutreachSubmission(args: {
   const status =
     confirmedMatches.length > 0 ? "conversion_failed" : "submitted_no_confirmed";
 
+  if (supabaseConfig()) {
+    await patchPendingOutreachSupabase(args.token, {
+      status,
+      confirmed_matches_json: confirmedMatches,
+      rejected_matches_json: rejectedMatches,
+      confirmed_at: now,
+      conversion_error: "",
+    });
+    return (await getPendingOutreachLeadByToken(args.token))!;
+  }
+
+  await ensurePendingOutreachTable();
   await prisma.$executeRawUnsafe(
     `UPDATE pending_outreach_leads
      SET status = ?,
@@ -361,6 +497,18 @@ export async function markPendingOutreachConverted(args: {
   cmsDashboardUrl: string;
   cmsResponse: unknown;
 }): Promise<PendingOutreachLead> {
+  if (supabaseConfig()) {
+    await patchPendingOutreachSupabase(args.token, {
+      status: "converted",
+      cms_claim_id: args.cmsClaimId,
+      cms_intake_id: args.cmsIntakeId,
+      cms_dashboard_url: args.cmsDashboardUrl,
+      cms_response_json: args.cmsResponse,
+      conversion_error: "",
+    });
+    return (await getPendingOutreachLeadByToken(args.token))!;
+  }
+
   await ensurePendingOutreachTable();
   await prisma.$executeRawUnsafe(
     `UPDATE pending_outreach_leads
@@ -385,6 +533,14 @@ export async function markPendingOutreachConversionFailed(
   token: string,
   error: string,
 ): Promise<void> {
+  if (supabaseConfig()) {
+    await patchPendingOutreachSupabase(token, {
+      status: "conversion_failed",
+      conversion_error: error.slice(0, 2000),
+    });
+    return;
+  }
+
   await ensurePendingOutreachTable();
   await prisma.$executeRawUnsafe(
     `UPDATE pending_outreach_leads
