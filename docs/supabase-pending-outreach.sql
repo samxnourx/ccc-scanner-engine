@@ -36,3 +36,7 @@ on public.pending_outreach_leads (status);
 
 create index if not exists pending_outreach_leads_token_idx
 on public.pending_outreach_leads (token);
+
+grant usage on schema public to service_role;
+grant select, insert, update, delete on public.pending_outreach_leads to service_role;
+grant usage, select on sequence public.pending_outreach_leads_id_seq to service_role;
