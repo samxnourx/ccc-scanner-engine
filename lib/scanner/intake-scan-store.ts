@@ -34,6 +34,7 @@ type IntakeScanRow = {
   results_sent_at: string | Date | null;
   no_match_reason: string | null;
   intake_json?: string | null;
+  queue_hidden_at?: string | Date | null;
 };
 
 let tableReady: Promise<void> | null = null;
@@ -98,13 +99,25 @@ async function ensureIntakeScanTable(): Promise<void> {
         results_sent_at DATETIME,
         no_match_reason TEXT NOT NULL DEFAULT '',
         intake_json TEXT,
+        queue_hidden_at DATETIME,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    await prisma
-      .$executeRawUnsafe("ALTER TABLE intake_scan_progress ADD COLUMN intake_json TEXT")
-      .catch(() => undefined);
+    const columns = await prisma.$queryRawUnsafe<{ name: string }[]>(
+      `PRAGMA table_info(intake_scan_progress)`,
+    );
+    const names = new Set(columns.map((column) => column.name));
+    if (!names.has("intake_json")) {
+      await prisma.$executeRawUnsafe(
+        "ALTER TABLE intake_scan_progress ADD COLUMN intake_json TEXT",
+      );
+    }
+    if (!names.has("queue_hidden_at")) {
+      await prisma.$executeRawUnsafe(
+        "ALTER TABLE intake_scan_progress ADD COLUMN queue_hidden_at DATETIME",
+      );
+    }
   })();
   await tableReady;
 }
@@ -143,11 +156,48 @@ export async function getCompletedIntakeScanProgresses(): Promise<
     SELECT *
     FROM intake_scan_progress
     WHERE status IN ('matches_sent', 'no_matches')
+      AND queue_hidden_at IS NULL
     ORDER BY COALESCE(results_sent_at, scan_ran_at, updated_at) DESC
   `;
   return rows
     .map((row) => coerceProgress(row))
     .filter((row): row is IntakeScanProgress => Boolean(row));
+}
+
+export async function getHiddenIntakeScanQueueIds(): Promise<Set<string>> {
+  await ensureIntakeScanTable();
+  const rows = await prisma.$queryRaw<{ intake_id: string }[]>`
+    SELECT intake_id
+    FROM intake_scan_progress
+    WHERE queue_hidden_at IS NOT NULL
+  `;
+  return new Set(rows.map((row) => row.intake_id));
+}
+
+export async function hideIntakesFromScanQueue(
+  intakeIds: string[],
+): Promise<number> {
+  const ids = [...new Set(intakeIds.map((id) => id.trim()).filter(Boolean))];
+  if (ids.length === 0) return 0;
+  await ensureIntakeScanTable();
+  for (const intakeId of ids) {
+    await prisma.$executeRaw`
+      INSERT INTO intake_scan_progress (
+        intake_id,
+        queue_hidden_at,
+        updated_at
+      )
+      VALUES (
+        ${intakeId},
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT(intake_id) DO UPDATE SET
+        queue_hidden_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+    `;
+  }
+  return ids.length;
 }
 
 export async function saveIntakeQueueSnapshots(

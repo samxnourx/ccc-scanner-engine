@@ -1,11 +1,11 @@
-import Link from "next/link";
-
+import { QueueSelectionTable } from "@/app/scanner/queue/QueueSelectionTable";
 import {
   fetchScannerIntakeQueue,
   type ScannerIntakeQueueItem,
 } from "@/lib/scanner/intake-queue-api";
 import {
   getCompletedIntakeScanProgresses,
+  getHiddenIntakeScanQueueIds,
   getIntakeScanProgressMap,
   intakeProgressLabel,
   isIntakeScanCompleted,
@@ -37,100 +37,24 @@ type QueueTableProps = {
   actionLabel: string;
 };
 
-function QueueTable({
+function QueueTableData({
   rows,
   progressByIntakeId,
-  emptyMessage,
   actionLabel,
 }: QueueTableProps) {
-  return (
-    <div className="overflow-x-auto border border-[#b8b8b4] bg-white">
-      <table className="w-full min-w-[960px] border-collapse text-left text-sm">
-        <thead className="bg-[#ececea] text-neutral-800">
-          <tr>
-            <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
-              Intake ID
-            </th>
-            <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
-              Name
-            </th>
-            <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
-              Phone
-            </th>
-            <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
-              Email
-            </th>
-            <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
-              Primary Claim Type
-            </th>
-            <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
-              Scan Status
-            </th>
-            <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
-              Created
-            </th>
-            <th className="w-32 border-b border-[#b8b8b4] px-3 py-2 font-semibold">
-              Action
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td
-                colSpan={8}
-                className="border-b border-[#e0e0dc] px-3 py-6 text-center text-neutral-600"
-              >
-                {emptyMessage}
-              </td>
-            </tr>
-          ) : (
-            rows.map((row) => {
-              const progress = progressByIntakeId.get(row.intakeId);
-              return (
-                <tr key={row.intakeId} className="hover:bg-[#fafaf8]">
-                  <td className="border-b border-[#e0e0dc] px-3 py-2 font-mono text-xs">
-                    <Link
-                      href={`/scanner/queue/${encodeURIComponent(row.intakeId)}`}
-                      className="text-neutral-900 underline-offset-2 hover:underline"
-                    >
-                      {row.intakeId}
-                    </Link>
-                  </td>
-                  <td className="border-b border-[#e0e0dc] px-3 py-2">
-                    {row.fullName || "-"}
-                  </td>
-                  <td className="border-b border-[#e0e0dc] px-3 py-2 whitespace-nowrap">
-                    {row.phone || "-"}
-                  </td>
-                  <td className="border-b border-[#e0e0dc] px-3 py-2">
-                    {row.email || "-"}
-                  </td>
-                  <td className="border-b border-[#e0e0dc] px-3 py-2">
-                    {row.primaryClaimType || "-"}
-                  </td>
-                  <td className="border-b border-[#e0e0dc] px-3 py-2">
-                    {intakeProgressLabel(progress, row.intakeStatus)}
-                  </td>
-                  <td className="border-b border-[#e0e0dc] px-3 py-2 whitespace-nowrap text-xs">
-                    {formatStamp(row.createdAt)}
-                  </td>
-                  <td className="border-b border-[#e0e0dc] px-3 py-2 whitespace-nowrap">
-                    <Link
-                      href={`/scanner/queue/${encodeURIComponent(row.intakeId)}`}
-                      className="inline-flex min-w-24 items-center justify-center whitespace-nowrap border border-[#6d6d68] bg-[#ececea] px-3 py-1.5 text-sm font-medium text-neutral-900 no-underline hover:bg-[#e0e0dc]"
-                    >
-                      {actionLabel}
-                    </Link>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
+  return rows.map((row) => {
+    const progress = progressByIntakeId.get(row.intakeId);
+    return {
+      intakeId: row.intakeId,
+      fullName: row.fullName,
+      phone: row.phone,
+      email: row.email,
+      primaryClaimType: row.primaryClaimType,
+      scanStatus: intakeProgressLabel(progress, row.intakeStatus),
+      createdLabel: formatStamp(row.createdAt),
+      actionLabel,
+    };
+  });
 }
 
 function errorMessage(error: unknown): string {
@@ -151,6 +75,14 @@ export default async function ScannerQueuePage() {
     .catch((error: unknown) => ({ rows: [], error: errorMessage(error) }));
   if (completedResult.error) scanProgressErrors.push(completedResult.error);
   const completedProgresses = completedResult.rows;
+  const hiddenResult = await getHiddenIntakeScanQueueIds()
+    .then((ids) => ({ ids, error: null as string | null }))
+    .catch((error: unknown) => ({
+      ids: new Set<string>(),
+      error: errorMessage(error),
+    }));
+  if (hiddenResult.error) scanProgressErrors.push(hiddenResult.error);
+  const hiddenIntakeIds = hiddenResult.ids;
   const progressResult = result.ok
     ? await getIntakeScanProgressMap([
         ...new Set([
@@ -168,7 +100,9 @@ export default async function ScannerQueuePage() {
   const progressByIntakeId = progressResult.map;
   const activeIntakes = result.ok
     ? result.intakes.filter(
-        (row) => !isIntakeScanCompleted(progressByIntakeId.get(row.intakeId)),
+        (row) =>
+          !hiddenIntakeIds.has(row.intakeId) &&
+          !isIntakeScanCompleted(progressByIntakeId.get(row.intakeId)),
       )
     : [];
   const completedIntakes = completedProgresses.map((progress) => {
@@ -189,7 +123,7 @@ export default async function ScannerQueuePage() {
         updatedAt: progress.resultsSentAt ?? progress.scanRanAt ?? "",
       }
     );
-  });
+  }).filter((row) => !hiddenIntakeIds.has(row.intakeId));
 
   return (
     <div className="space-y-4">
@@ -220,11 +154,14 @@ export default async function ScannerQueuePage() {
             <h2 className="text-base font-semibold tracking-tight">
               Active scan queue
             </h2>
-            <QueueTable
-              rows={activeIntakes}
-              progressByIntakeId={progressByIntakeId}
+            <QueueSelectionTable
+              rows={QueueTableData({
+                rows: activeIntakes,
+                progressByIntakeId,
+                emptyMessage: "No active intakes in the scan queue.",
+                actionLabel: "Open",
+              })}
               emptyMessage="No active intakes in the scan queue."
-              actionLabel="Open"
             />
           </section>
 
@@ -232,11 +169,14 @@ export default async function ScannerQueuePage() {
             <h2 className="text-base font-semibold tracking-tight">
               Completed scans
             </h2>
-            <QueueTable
-              rows={completedIntakes}
-              progressByIntakeId={progressByIntakeId}
+            <QueueSelectionTable
+              rows={QueueTableData({
+                rows: completedIntakes,
+                progressByIntakeId,
+                emptyMessage: "No completed scans yet.",
+                actionLabel: "View",
+              })}
               emptyMessage="No completed scans yet."
-              actionLabel="View"
             />
           </section>
         </div>
