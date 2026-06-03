@@ -781,8 +781,10 @@ export async function markScannerProspectEmailSent(input: {
 
 export async function listProspectProperties(
   prospect: ScannerProspect,
+  limit = 5000,
 ): Promise<ProspectPropertyRow[]> {
   await ensureScannerProspectsTable();
+  const take = Math.min(Math.max(limit, 1), 5000);
   const candidateTables = await prisma.$queryRawUnsafe<{ name: string }[]>(
     `SELECT name FROM sqlite_master
      WHERE type = 'table' AND name = 'source_record_business_candidates'`,
@@ -805,9 +807,10 @@ export async function listProspectProperties(
        WHERE source = ?
          AND owner_name_normalized = ?
        ORDER BY amount_num DESC, source_record_id ASC
-       LIMIT 1000`,
+       LIMIT ?`,
       prospect.source,
       prospect.ownerNameNormalized,
+      take,
     );
   }
   return prisma.$queryRawUnsafe<ProspectPropertyRow[]>(
@@ -828,9 +831,10 @@ export async function listProspectProperties(
        AND owner_name_normalized = ?
      ORDER BY CAST(REPLACE(REPLACE(REPLACE(TRIM(COALESCE(amount,'')), '$', ''), ',', ''), ' ', '') AS REAL) DESC,
               id ASC
-     LIMIT 1000`,
+     LIMIT ?`,
     prospect.source,
     prospect.ownerNameNormalized,
+    take,
   );
 }
 

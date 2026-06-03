@@ -20,7 +20,6 @@ import {
   listProspectProperties,
   markScannerProspectEmailSent,
   parseProspectContactEmails,
-  parseProspectSampleMatches,
   updateScannerProspectContact,
   updateScannerProspectStatus,
 } from "@/lib/scanner/prospect-discovery";
@@ -50,22 +49,22 @@ export async function saveProspectAsLeadAction(prospectId: number): Promise<void
   const prospect = await getScannerProspect(id);
   if (!prospect) throw new Error("Prospect not found.");
 
-  const samples = parseProspectSampleMatches(prospect.sampleMatchesJson);
-  if (samples.length === 0) {
-    throw new Error("Prospect does not have sample matches to save.");
+  const properties = await listProspectProperties(prospect);
+  if (properties.length === 0) {
+    throw new Error("Prospect does not have matches to save.");
   }
 
-  const matches: NormalizedMatch[] = samples.map((match, index) => ({
-    id: `prospect-${prospect.id}-${match.propertyId || index}`,
-    sourceName: match.sourceName,
-    reportedOwnerName: match.reportedOwnerName,
-    holderName: match.holderName,
-    propertyId: match.propertyId,
-    amount: match.amount ?? "",
-    reportedAddress: match.reportedAddress,
-    confidence: match.confidence,
+  const matches: NormalizedMatch[] = properties.map((property, index) => ({
+    id: `prospect-${prospect.id}-${property.sourceRecordId || property.propertyId || index}`,
+    sourceName: property.sourceName,
+    reportedOwnerName: property.reportedOwnerName,
+    holderName: property.holderName,
+    propertyId: property.propertyId,
+    amount: property.amount ?? "",
+    reportedAddress: property.reportedAddress,
+    confidence: property.confidence,
     notes: "Database-discovered prospect",
-    propertyType: match.accountType,
+    propertyType: property.accountType,
   }));
 
   const scannerQuery: ScannerQuery = {
