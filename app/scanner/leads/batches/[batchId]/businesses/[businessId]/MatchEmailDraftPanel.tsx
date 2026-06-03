@@ -47,6 +47,8 @@ const FIRM_FOOTER_CONTACT_TEXT =
   "677 S Magnolia Ave\nEl Cajon, CA 92020\nPhone: 833-844-7700\nFax: 833-962-6175\nwww.SamiNouriLawFirm.com";
 const CLAIM_ESCALATION_TEXT =
   "If a claim is unreasonably delayed, denied, or handled inconsistently with the supporting records, our role includes reviewing the agency's position, organizing the evidence, responding to follow-up requests, and escalating the matter when appropriate, including by bringing an action in Superior Court when legally warranted.";
+const UNCLAIMED_PROPERTY_EXPLANATION =
+  "Unclaimed property is usually money being held by a state or other government agency because it never reached the intended owner. Under unclaimed property laws, businesses and institutions must report and transfer certain unpaid funds to the government when they cannot deliver them. These records can include insurance payments, refunds, wage checks, bank balances, or other funds that people and businesses often never learn are waiting for them.";
 
 function matchLine(m: LeadBusinessMatchVm): string {
   return [
@@ -82,7 +84,7 @@ function buildDraft(input: {
 Sami Nouri Law Firm is contacting ${input.businessName} because our internal research identified possible unclaimed property records totaling ${selectedTotalText} that may relate to your organization.
 
 What is unclaimed property?
-Unclaimed property generally refers to funds or other property held by a business, agency, or institution that could not be delivered to the owner and was later reported to a public agency.
+${UNCLAIMED_PROPERTY_EXPLANATION}
 
 How we help:
 Our team reviews public datasets across state, county, and municipal agencies, identifies possible matches, confirms the correct claim requirements, coordinates document collection through a secure client dashboard, prepares claim materials when authorized, and tracks follow-up with the agency. Some claims may require original documents, wet signatures, or agency-specific forms before submission.
