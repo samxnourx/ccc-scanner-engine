@@ -14,6 +14,7 @@ import {
   getScannerProspect,
   listProspectProperties,
   parseProspectContactEmails,
+  parseProspectSampleMatches,
 } from "@/lib/scanner/prospect-discovery";
 import type { NormalizedMatch } from "@/lib/scanner/types";
 
@@ -38,6 +39,8 @@ export default async function ProspectDetailPage({ params }: Props) {
   const properties = await listProspectProperties(prospect);
   const listedTotal = sumAmountFields(properties.map((row) => row.amount));
   const contactEmails = parseProspectContactEmails(prospect.contactEmailsJson);
+  const sentMatches = parseProspectSampleMatches(prospect.outreachMatchesJson ?? "");
+  const sentSnapshotRows = sentMatches.length > 0 ? sentMatches : properties;
   const matches: LeadBusinessMatchVm[] = properties.map((row) => ({
     id: row.sourceRecordId,
     sourceName: row.sourceName,
@@ -51,8 +54,8 @@ export default async function ProspectDetailPage({ params }: Props) {
     matchScore: null,
     notes: "Database-discovered prospect",
   }));
-  const snapshotMatches: NormalizedMatch[] = properties.map((row) => ({
-    id: `prospect-${prospect.id}-${row.sourceRecordId}`,
+  const snapshotMatches: NormalizedMatch[] = sentSnapshotRows.map((row, index) => ({
+    id: `prospect-${prospect.id}-sent-${row.propertyId || index}`,
     sourceName: row.sourceName,
     reportedOwnerName: row.reportedOwnerName,
     holderName: row.holderName,

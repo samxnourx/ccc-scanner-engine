@@ -17,9 +17,11 @@ import {
 import type { NormalizedMatch, ScannerQuery } from "@/lib/scanner/types";
 import {
   getScannerProspect,
+  listProspectPropertiesBySourceRecordIds,
   listProspectProperties,
   markScannerProspectEmailSent,
   parseProspectContactEmails,
+  searchRelatedProspectProperties,
   updateScannerProspectContact,
   updateScannerProspectStatus,
 } from "@/lib/scanner/prospect-discovery";
@@ -128,6 +130,71 @@ export async function updateProspectContactAction(input: {
   }
 }
 
+export async function searchProspectRelatedPropertiesAction(input: {
+  prospectId: number;
+  query: string;
+  excludeSourceRecordIds: string[];
+}): Promise<
+  | {
+      ok: true;
+      matches: Array<{
+        id: number;
+        sourceName: string;
+        reportedOwnerName: string;
+        holderName: string;
+        propertyId: string;
+        amount: string | null;
+        reportedAddress: string;
+        accountType: string | null;
+        confidence: string;
+        matchScore: null;
+        notes: string;
+      }>;
+    }
+  | { ok: false; error: string }
+> {
+  const prospectId = Number(input.prospectId);
+  const query = input.query.trim();
+  const excludeSourceRecordIds = input.excludeSourceRecordIds
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+
+  if (!Number.isFinite(prospectId) || prospectId <= 0) {
+    return { ok: false, error: "Invalid prospect id." };
+  }
+  if (query.length < 2) {
+    return { ok: false, error: "Enter an alternate owner name to search." };
+  }
+
+  try {
+    const rows = await searchRelatedProspectProperties({
+      prospectId,
+      query,
+      excludeSourceRecordIds,
+      limit: 100,
+    });
+    return {
+      ok: true,
+      matches: rows.map((row) => ({
+        id: row.sourceRecordId,
+        sourceName: row.sourceName,
+        reportedOwnerName: row.reportedOwnerName,
+        holderName: row.holderName,
+        propertyId: row.propertyId,
+        amount: row.amount,
+        reportedAddress: row.reportedAddress,
+        accountType: row.accountType,
+        confidence: row.confidence,
+        matchScore: null,
+        notes: "Related owner-name search",
+      })),
+    };
+  } catch (e) {
+    console.error("[prospects] related property search failed", e);
+    return { ok: false, error: "Could not search related properties." };
+  }
+}
+
 export async function sendProspectEmailAction(input: {
   prospectId: number;
   matchIds: string[];
@@ -156,8 +223,25 @@ export async function sendProspectEmailAction(input: {
     const prospect = await getScannerProspect(id);
     if (!prospect) return { ok: false, error: "Prospect not found." };
 
-    const rows = await listProspectProperties(prospect);
-    const selectedRows = rows.filter((row) => matchIds.has(String(row.sourceRecordId)));
+    const defaultRows = await listProspectProperties(prospect);
+    const defaultSelectedRows = defaultRows.filter((row) =>
+      matchIds.has(String(row.sourceRecordId)),
+    );
+    const foundIds = new Set(defaultSelectedRows.map((row) => String(row.sourceRecordId)));
+    const missingIds = [...matchIds]
+      .filter((matchId) => !foundIds.has(matchId))
+      .map((matchId) => Number(matchId))
+      .filter((matchId) => Number.isFinite(matchId) && matchId > 0);
+    const relatedSelectedRows = await listProspectPropertiesBySourceRecordIds(missingIds);
+    const selectedRowsById = new Map(
+      [...defaultSelectedRows, ...relatedSelectedRows].map((row) => [
+        String(row.sourceRecordId),
+        row,
+      ]),
+    );
+    const selectedRows = [...matchIds]
+      .map((matchId) => selectedRowsById.get(matchId))
+      .filter((row): row is NonNullable<typeof row> => Boolean(row));
     if (selectedRows.length !== matchIds.size) {
       return { ok: false, error: "One or more selected matches were not found." };
     }
@@ -218,6 +302,10 @@ export async function sendProspectEmailAction(input: {
       portalUrl: outreach.confirmationUrl,
       intakeId: null,
       sentAt: sentAt.toISOString(),
+      matches: matches.map((match) => ({
+        ...match,
+        accountType: match.accountType ?? null,
+      })),
     });
 
     await recordLeadEmailSend({

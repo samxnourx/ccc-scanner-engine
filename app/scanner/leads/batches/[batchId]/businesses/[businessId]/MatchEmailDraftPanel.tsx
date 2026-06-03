@@ -8,7 +8,10 @@ import {
   sendLeadDiscoveryTestEmailAction,
 } from "@/app/actions/lead-discovery-actions";
 import { sendLeadBusinessTestEmailAction } from "@/app/scanner/leads/lead-batch-actions";
-import { sendProspectEmailAction } from "@/app/scanner/prospects/prospect-actions";
+import {
+  searchProspectRelatedPropertiesAction,
+  sendProspectEmailAction,
+} from "@/app/scanner/prospects/prospect-actions";
 import { formatUsdTotal, sumAmountFields } from "@/lib/scanner/amounts";
 import { displayLeadOutreachSourceName } from "@/lib/scanner/lead-source-display";
 
@@ -112,21 +115,28 @@ export function MatchEmailDraftPanel({
   emails,
   matches,
 }: Props) {
+  const [availableMatches, setAvailableMatches] =
+    useState<LeadBusinessMatchVm[]>(matches);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [pending, startTransition] = useTransition();
   const [savePending, startSaveTransition] = useTransition();
+  const [relatedPending, startRelatedTransition] = useTransition();
   const [sendMessage, setSendMessage] = useState<string | null>(null);
   const [emailMessage, setEmailMessage] = useState<string | null>(null);
+  const [relatedQuery, setRelatedQuery] = useState("");
+  const [relatedMessage, setRelatedMessage] = useState<string | null>(null);
+  const [relatedResults, setRelatedResults] = useState<LeadBusinessMatchVm[]>([]);
+  const [selectedRelated, setSelectedRelated] = useState<Record<string, boolean>>({});
   const primaryEmail = emails[0] ?? "";
   const [recipientEmail, setRecipientEmail] = useState(emails.join("\n"));
 
   const selectedMatches = useMemo(
-    () => matches.filter((m) => selected[String(m.id)]),
-    [matches, selected],
+    () => availableMatches.filter((m) => selected[String(m.id)]),
+    [availableMatches, selected],
   );
   const listedTotal = useMemo(
-    () => sumAmountFields(matches.map((m) => m.amount)),
-    [matches],
+    () => sumAmountFields(availableMatches.map((m) => m.amount)),
+    [availableMatches],
   );
   const selectedTotal = useMemo(
     () => sumAmountFields(selectedMatches.map((m) => m.amount)),
@@ -156,9 +166,62 @@ export function MatchEmailDraftPanel({
   function setAll(value: boolean): void {
     const next: Record<string, boolean> = {};
     if (value) {
-      for (const m of matches) next[String(m.id)] = true;
+      for (const m of availableMatches) next[String(m.id)] = true;
     }
     setSelected(next);
+  }
+
+  function searchRelatedProperties(): void {
+    if (prospectId == null) return;
+    setRelatedMessage(null);
+    startRelatedTransition(async () => {
+      const result = await searchProspectRelatedPropertiesAction({
+        prospectId,
+        query: relatedQuery,
+        excludeSourceRecordIds: availableMatches.map((match) => String(match.id)),
+      });
+      if (!result.ok) {
+        setRelatedMessage(result.error);
+        setRelatedResults([]);
+        setSelectedRelated({});
+        return;
+      }
+      setRelatedResults(result.matches);
+      setSelectedRelated({});
+      setRelatedMessage(
+        result.matches.length === 0
+          ? "No related properties found for that owner name."
+          : `${result.matches.length.toLocaleString("en-US")} related properties found.`,
+      );
+    });
+  }
+
+  function toggleRelated(id: number | string): void {
+    const key = String(id);
+    setSelectedRelated((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function addSelectedRelated(): void {
+    const additions = relatedResults.filter((match) => selectedRelated[String(match.id)]);
+    if (additions.length === 0) {
+      setRelatedMessage("Select at least one related property to add.");
+      return;
+    }
+    const existingIds = new Set(availableMatches.map((match) => String(match.id)));
+    const uniqueAdditions = additions.filter((match) => !existingIds.has(String(match.id)));
+    setAvailableMatches((prev) => [...prev, ...uniqueAdditions]);
+    setSelected((prev) => {
+      const next = { ...prev };
+      for (const match of uniqueAdditions) next[String(match.id)] = true;
+      return next;
+    });
+    setRelatedResults((prev) =>
+      prev.filter((match) => !uniqueAdditions.some((added) => String(added.id) === String(match.id))),
+    );
+    setSelectedRelated({});
+    setRelatedMessage(
+      `${uniqueAdditions.length.toLocaleString("en-US")} related properties added to this outreach package.`,
+    );
   }
 
   function saveRecipientEmail(): void {
@@ -308,7 +371,7 @@ export function MatchEmailDraftPanel({
             </tr>
           </thead>
           <tbody>
-            {matches.map((m) => (
+            {availableMatches.map((m) => (
               <tr key={m.id}>
                 <td className="border-b border-[#e0e0dc] px-3 py-2 align-top">
                   <input
@@ -342,6 +405,110 @@ export function MatchEmailDraftPanel({
           </tbody>
         </table>
       </div>
+
+      {prospectId != null ? (
+        <section className="border border-[#b8b8b4] bg-white p-4">
+          <h2 className="text-base font-semibold text-neutral-950">
+            Add related properties
+          </h2>
+          <p className="mt-1 text-sm text-neutral-700">
+            Search another reported owner name, DBA, abbreviation, or old firm
+            name, then add any matching rows to this same recovery offer.
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="block min-w-[18rem] max-w-xl flex-1">
+              <span className="mb-1 block text-xs uppercase text-neutral-600">
+                Alternate owner name
+              </span>
+              <input
+                type="text"
+                value={relatedQuery}
+                onChange={(event) => setRelatedQuery(event.target.value)}
+                placeholder="DTLA Law Group"
+                className="w-full border border-[#b8b8b4] bg-white px-3 py-2 text-sm"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={relatedPending || relatedQuery.trim().length < 2}
+              onClick={searchRelatedProperties}
+              className="border border-[#6d6d68] bg-[#ececea] px-3 py-2 text-sm font-medium hover:bg-[#e0e0dc] disabled:opacity-50"
+            >
+              {relatedPending ? "Searching..." : "Search related"}
+            </button>
+            <button
+              type="button"
+              disabled={relatedResults.length === 0}
+              onClick={addSelectedRelated}
+              className="border border-[#6d6d68] bg-white px-3 py-2 text-sm font-medium hover:bg-[#ececea] disabled:opacity-50"
+            >
+              Add selected
+            </button>
+          </div>
+          {relatedMessage ? (
+            <p className="mt-3 text-sm text-neutral-700" role="status">
+              {relatedMessage}
+            </p>
+          ) : null}
+          {relatedResults.length > 0 ? (
+            <div className="mt-4 overflow-x-auto border border-[#b8b8b4]">
+              <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+                <thead className="bg-[#ececea] text-neutral-800">
+                  <tr>
+                    <th className="w-24 border-b border-[#b8b8b4] px-3 py-2 font-semibold">
+                      Add
+                    </th>
+                    <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
+                      Reported owner
+                    </th>
+                    <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
+                      Amount
+                    </th>
+                    <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
+                      Holder
+                    </th>
+                    <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
+                      Property ID
+                    </th>
+                    <th className="border-b border-[#b8b8b4] px-3 py-2 font-semibold">
+                      Address
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {relatedResults.map((m) => (
+                    <tr key={m.id}>
+                      <td className="border-b border-[#e0e0dc] px-3 py-2 align-top">
+                        <input
+                          type="checkbox"
+                          checked={!!selectedRelated[String(m.id)]}
+                          onChange={() => toggleRelated(m.id)}
+                          aria-label={`Add related match ${m.propertyId}`}
+                        />
+                      </td>
+                      <td className="border-b border-[#e0e0dc] px-3 py-2 align-top font-medium">
+                        {m.reportedOwnerName}
+                      </td>
+                      <td className="border-b border-[#e0e0dc] px-3 py-2 align-top">
+                        {m.amount || "-"}
+                      </td>
+                      <td className="border-b border-[#e0e0dc] px-3 py-2 align-top">
+                        {m.holderName || "-"}
+                      </td>
+                      <td className="border-b border-[#e0e0dc] px-3 py-2 align-top font-mono text-xs">
+                        {m.propertyId}
+                      </td>
+                      <td className="border-b border-[#e0e0dc] px-3 py-2 align-top">
+                        {m.reportedAddress}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="grid gap-4">
         <div className="border border-[#b8b8b4] bg-white p-4">
