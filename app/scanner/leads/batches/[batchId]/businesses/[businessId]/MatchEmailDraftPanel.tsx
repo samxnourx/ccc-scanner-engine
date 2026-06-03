@@ -181,18 +181,17 @@ export function MatchEmailDraftPanel({
     if (prospectId == null && !leadDiscoveryId) return;
     setRelatedMessage(null);
     startRelatedTransition(async () => {
-      const excludeSourceRecordIds = availableMatches.map((match) => String(match.id));
       const result =
         prospectId != null
           ? await searchProspectRelatedPropertiesAction({
               prospectId,
               query: relatedQuery,
-              excludeSourceRecordIds,
+              excludeSourceRecordIds: [],
             })
           : await searchLeadDiscoveryRelatedPropertiesAction({
               leadDiscoveryId: leadDiscoveryId ?? "",
               query: relatedQuery,
-              excludeSourceRecordIds,
+              excludeSourceRecordIds: [],
             });
       if (!result.ok) {
         setRelatedMessage(result.error);
@@ -200,12 +199,14 @@ export function MatchEmailDraftPanel({
         setSelectedRelated({});
         return;
       }
-      setRelatedResults(result.matches);
+      const existingIds = new Set(availableMatches.map((match) => String(match.id)));
+      const newMatches = result.matches.filter((match) => !existingIds.has(String(match.id)));
+      setRelatedResults(newMatches);
       setSelectedRelated({});
       setRelatedMessage(
-        result.matches.length === 0
+        newMatches.length === 0
           ? "No related properties found for that owner name."
-          : `${result.matches.length.toLocaleString("en-US")} related properties found.`,
+          : `${newMatches.length.toLocaleString("en-US")} related properties found.`,
       );
     });
   }

@@ -582,6 +582,40 @@ export async function getOrCreateScannerProspectFromCandidate(input: {
   const ownerNameNormalized = input.ownerNameNormalized.trim();
   if (!ownerNameNormalized) return null;
 
+  const existingRows = await prisma.$queryRawUnsafe<ScannerProspect[]>(
+    `SELECT
+       id,
+       source,
+       owner_name_normalized AS ownerNameNormalized,
+       display_name AS displayName,
+       total_amount AS totalAmount,
+       property_count AS propertyCount,
+       city_count AS cityCount,
+       address_count AS addressCount,
+       cities_json AS citiesJson,
+       addresses_json AS addressesJson,
+       sample_matches_json AS sampleMatchesJson,
+       status,
+       built_at AS builtAt,
+       contact_emails_json AS contactEmailsJson,
+       contact_phone AS contactPhone,
+       contact_website AS contactWebsite,
+       outreach_email_to AS outreachEmailTo,
+       outreach_email_subject AS outreachEmailSubject,
+       outreach_email_text AS outreachEmailText,
+       outreach_portal_url AS outreachPortalUrl,
+       outreach_intake_id AS outreachIntakeId,
+       outreach_sent_at AS outreachSentAt,
+       outreach_matches_json AS outreachMatchesJson
+     FROM scanner_prospects
+     WHERE source = ?
+       AND owner_name_normalized = ?
+     LIMIT 1`,
+    source,
+    ownerNameNormalized,
+  );
+  if (existingRows[0]) return existingRows[0];
+
   const properties = await listBusinessCandidateProperties({
     source,
     ownerNameNormalized,
@@ -953,11 +987,8 @@ export async function searchRelatedProspectProperties(input: {
   const exclude = [...new Set(input.excludeSourceRecordIds ?? [])]
     .map((id) => Number(id))
     .filter((id) => Number.isFinite(id) && id > 0);
+  const excludeSet = new Set(exclude);
   const take = Math.min(Math.max(input.limit ?? 100, 1), 250);
-  const excludeClause =
-    exclude.length > 0
-      ? ` AND source_record_id NOT IN (${exclude.map(() => "?").join(", ")})`
-      : "";
 
   const candidateTables = await prisma.$queryRawUnsafe<{ name: string }[]>(
     `SELECT name FROM sqlite_master
@@ -981,20 +1012,19 @@ export async function searchRelatedProspectProperties(input: {
        WHERE source = ?
          AND owner_name_normalized = ?
          AND owner_name_normalized <> ?
-         ${excludeClause}
        ORDER BY amount_num DESC, source_record_id ASC
       LIMIT ?`,
       prospect.source,
       normalized,
       prospect.ownerNameNormalized,
-      ...exclude,
       take,
     );
-    if (exactRows.length > 0) return exactRows;
+    const filteredExactRows = exactRows.filter(
+      (row) => !excludeSet.has(row.sourceRecordId),
+    );
+    if (filteredExactRows.length > 0) return filteredExactRows;
   }
 
-  const sourceExcludeClause =
-    exclude.length > 0 ? ` AND id NOT IN (${exclude.map(() => "?").join(", ")})` : "";
   const sourceExactRows = await prisma.$queryRawUnsafe<ProspectPropertyRow[]>(
     `SELECT
        id AS sourceRecordId,
@@ -1008,23 +1038,23 @@ export async function searchRelatedProspectProperties(input: {
        'high' AS confidence,
        city,
        address
-     FROM source_records
+     FROM source_records INDEXED BY source_records_owner_name_normalized_idx
      WHERE source = ?
        AND owner_name_normalized = ?
        AND owner_name_normalized <> ?
-       ${sourceExcludeClause}
      ORDER BY CAST(REPLACE(REPLACE(REPLACE(TRIM(COALESCE(amount,'')), '$', ''), ',', ''), ' ', '') AS REAL) DESC,
               id ASC
      LIMIT ?`,
     prospect.source,
     normalized,
     prospect.ownerNameNormalized,
-    ...exclude,
     take,
   );
-  if (sourceExactRows.length > 0) return sourceExactRows;
+  const filteredSourceExactRows = sourceExactRows.filter(
+    (row) => !excludeSet.has(row.sourceRecordId),
+  );
+  if (filteredSourceExactRows.length > 0) return filteredSourceExactRows;
 
-  const excludeSet = new Set(exclude);
   const scannerMatches = await runScanner({ name: input.query.trim() });
   const scannerSourceRecordIds = scannerMatches
     .map((match) => match.sourceRecordId)
