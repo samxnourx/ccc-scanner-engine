@@ -40,9 +40,11 @@ function setScopeChecked(scope: string, checked: boolean): void {
 function parseDashboardValues(values: string[]): {
   leadBusinessIds: number[];
   leadDiscoveryIds: string[];
+  prospectIds: number[];
 } {
   const leadBusinessIds: number[] = [];
   const leadDiscoveryIds: string[] = [];
+  const prospectIds: number[] = [];
 
   for (const value of values) {
     if (value.startsWith("business:")) {
@@ -51,10 +53,13 @@ function parseDashboardValues(values: string[]): {
     } else if (value.startsWith("discovery:")) {
       const id = value.slice("discovery:".length).trim();
       if (id) leadDiscoveryIds.push(id);
+    } else if (value.startsWith("prospect:")) {
+      const id = Number(value.slice("prospect:".length));
+      if (Number.isFinite(id) && id > 0) prospectIds.push(id);
     }
   }
 
-  return { leadBusinessIds, leadDiscoveryIds };
+  return { leadBusinessIds, leadDiscoveryIds, prospectIds };
 }
 
 export function LeadDashboardBulkActions({

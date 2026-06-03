@@ -17,6 +17,7 @@ import {
   setLeadBusinessOutreachStatus,
 } from "@/lib/scanner/lead-batch-service";
 import { deleteLeadDiscoveries } from "@/lib/scanner/lead-discovery-store";
+import { removeScannerProspectsFromDashboard } from "@/lib/scanner/prospect-discovery";
 import { prisma } from "@/lib/scanner/db/client";
 import {
   buildLeadOutreachEmailPayload,
@@ -316,6 +317,7 @@ export async function deleteLeadBusinessesAction(
 export async function removeLeadDashboardRowsAction(input: {
   leadBusinessIds?: number[];
   leadDiscoveryIds?: string[];
+  prospectIds?: number[];
 }): Promise<{ deletedCount: number }> {
   const leadBusinessIds = [...new Set(input.leadBusinessIds ?? [])]
     .map((id) => Number(id))
@@ -323,14 +325,21 @@ export async function removeLeadDashboardRowsAction(input: {
   const leadDiscoveryIds = [...new Set(input.leadDiscoveryIds ?? [])]
     .map((id) => id.trim())
     .filter(Boolean);
+  const prospectIds = [...new Set(input.prospectIds ?? [])]
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id) && id > 0);
 
-  const [businessResult, discoveryDeletedCount] = await Promise.all([
+  const [businessResult, discoveryDeletedCount, prospectResult] = await Promise.all([
     removeLeadBusinessesFromDashboard({ leadBusinessIds }),
     deleteLeadDiscoveries(leadDiscoveryIds),
+    removeScannerProspectsFromDashboard(prospectIds),
   ]);
   revalidatePath("/scanner/leads");
   return {
-    deletedCount: businessResult.updatedCount + discoveryDeletedCount,
+    deletedCount:
+      businessResult.updatedCount +
+      discoveryDeletedCount +
+      prospectResult.updatedCount,
   };
 }
 

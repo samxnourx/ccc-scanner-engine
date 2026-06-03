@@ -13,6 +13,7 @@ import {
 } from "@/lib/scanner/lead-batch-service";
 import { formatUsdTotal } from "@/lib/scanner/amounts";
 import { listLeadDiscoveries } from "@/lib/scanner/lead-discovery-store";
+import { listScannerProspects } from "@/lib/scanner/prospect-discovery";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,20 @@ function formatOutreachStatus(status: string): string {
   return labels[status] ?? status.replace(/_/g, " ");
 }
 
+function parseProspectEmailDisplay(raw: string | null): string {
+  if (!raw) return "-";
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return "-";
+    const emails = parsed
+      .map((value) => String(value).trim())
+      .filter((value) => value.includes("@"));
+    return emails.length > 0 ? emails.join("\n") : "-";
+  } catch {
+    return "-";
+  }
+}
+
 function percent(done: number, total: number): number {
   if (total <= 0) return 0;
   return Math.round((done / total) * 100);
@@ -75,6 +90,11 @@ export default async function LeadDashboardPage({ searchParams }: PageProps) {
   const batches = await listLeadScanBatches().catch(() => []);
   const outreachRows = await listLeadOutreachLedger().catch(() => []);
   const discoveryRows = await listLeadDiscoveries().catch(() => []);
+  const reachedOutProspectRows = await listScannerProspects({
+    status: "email_sent",
+    minAmount: 0,
+    limit: 200,
+  }).catch(() => []);
   const savedRows = outreachRows.filter((row) => row.outreachStatus === "approved_for_email");
   const savedDiscoveryRows = discoveryRows.filter((row) =>
     ["detected", "reviewed", "approved_for_outreach"].includes(row.status),
@@ -445,7 +465,9 @@ export default async function LeadDashboardPage({ searchParams }: PageProps) {
               </tr>
             </thead>
             <tbody>
-              {reachedOutRows.length === 0 && reachedOutDiscoveryRows.length === 0 ? (
+              {reachedOutRows.length === 0 &&
+              reachedOutDiscoveryRows.length === 0 &&
+              reachedOutProspectRows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}
@@ -540,6 +562,52 @@ export default async function LeadDashboardPage({ searchParams }: PageProps) {
                       kind="dashboard"
                       value={`discovery:${row.leadDiscoveryId}`}
                     />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {reachedOutProspectRows.map((row) => (
+                <tr key={`prospect-${row.id}`}>
+                  <td className="border-b border-[#e0e0dc] px-2 py-2 align-top">
+                    <input
+                      type="checkbox"
+                      data-dashboard-select="reached-out-leads"
+                      value={`prospect:${row.id}`}
+                      aria-label={`Select ${row.displayName}`}
+                      className="h-4 w-4"
+                    />
+                  </td>
+                  <td className="border-b border-[#e0e0dc] px-3 py-2 font-medium">
+                    {row.displayName}
+                  </td>
+                  <td className="break-all border-b border-[#e0e0dc] px-3 py-2 font-mono text-xs">
+                    {row.outreachEmailTo ||
+                      parseProspectEmailDisplay(row.contactEmailsJson)}
+                  </td>
+                  <td className="whitespace-nowrap border-b border-[#e0e0dc] px-3 py-2">
+                    Email sent
+                  </td>
+                  <td className="border-b border-[#e0e0dc] px-3 py-2">
+                    {formatNumber(row.propertyCount)}
+                    <span className="ml-2 text-xs text-neutral-600">
+                      {formatUsdTotal(row.totalAmount)}
+                    </span>
+                  </td>
+                  <td className="border-b border-[#e0e0dc] px-3 py-2">
+                    Candidate Database
+                  </td>
+                  <td className="border-b border-[#e0e0dc] px-3 py-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Link
+                        href={`/scanner/prospects/${row.id}`}
+                        className="border border-[#6d6d68] bg-[#ececea] px-3 py-1.5 text-sm font-medium text-neutral-900 no-underline hover:bg-[#e0e0dc]"
+                      >
+                        Open
+                      </Link>
+                      <LeadDashboardDeleteButton
+                        kind="dashboard"
+                        value={`prospect:${row.id}`}
+                      />
                     </div>
                   </td>
                 </tr>

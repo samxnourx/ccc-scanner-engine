@@ -779,6 +779,30 @@ export async function markScannerProspectEmailSent(input: {
   );
 }
 
+export async function removeScannerProspectsFromDashboard(
+  prospectIds: number[],
+): Promise<{ updatedCount: number }> {
+  const ids = [...new Set(prospectIds)]
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  if (ids.length === 0) return { updatedCount: 0 };
+
+  await ensureScannerProspectsTable();
+  const result = await prisma.$executeRawUnsafe(
+    `UPDATE scanner_prospects
+     SET status = 'new',
+         outreach_email_to = NULL,
+         outreach_email_subject = NULL,
+         outreach_email_text = NULL,
+         outreach_portal_url = NULL,
+         outreach_intake_id = NULL,
+         outreach_sent_at = NULL
+     WHERE id IN (${ids.map(() => "?").join(", ")})`,
+    ...ids,
+  );
+  return { updatedCount: Number(result ?? 0) };
+}
+
 export async function listProspectProperties(
   prospect: ScannerProspect,
   limit = 5000,
