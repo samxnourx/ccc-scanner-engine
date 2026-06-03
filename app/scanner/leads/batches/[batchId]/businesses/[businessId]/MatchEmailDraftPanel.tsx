@@ -45,6 +45,8 @@ const GOVERNMENT_AGENCY_CONTACT_TEXT =
   "California State Controller's Office Unclaimed Property Division\nPhone: (800) 992-4647 Nationwide; (916) 323-2827 Outside of U.S.\nMailing claims and general information: P.O. Box 942850, Sacramento, CA 94250-5873";
 const FIRM_FOOTER_CONTACT_TEXT =
   "677 S Magnolia Ave\nEl Cajon, CA 92020\nPhone: 833-844-7700\nFax: 833-962-6175\nwww.SamiNouriLawFirm.com";
+const CLAIM_ESCALATION_TEXT =
+  "If a claim is unreasonably delayed, denied, or handled inconsistently with the supporting records, our role includes reviewing the agency's position, organizing the evidence, responding to follow-up requests, and escalating the matter when appropriate.";
 
 function matchLine(m: LeadBusinessMatchVm): string {
   return [
@@ -84,6 +86,7 @@ Unclaimed property generally refers to funds or other property held by a busines
 
 How we help:
 Our team reviews public datasets across state, county, and municipal agencies, identifies possible matches, confirms the correct claim requirements, coordinates document collection through a secure client dashboard, prepares claim materials when authorized, and tracks follow-up with the agency. Some claims may require original documents, wet signatures, or agency-specific forms before submission.
+${CLAIM_ESCALATION_TEXT}
 Sami Nouri Law Firm handles this service for a 10% processing fee from recovered funds.
 
 Possible listings for review (${input.selectedMatches.length.toLocaleString("en-US")}, totaling ${selectedTotalText}):
