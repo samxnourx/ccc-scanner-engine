@@ -885,8 +885,9 @@ export async function listProspectPropertiesBySourceRecordIds(
      WHERE type = 'table' AND name = 'source_record_business_candidates'`,
   );
   const placeholders = ids.map(() => "?").join(", ");
+  const rowsById = new Map<number, ProspectPropertyRow>();
   if (candidateTables.length > 0) {
-    return prisma.$queryRawUnsafe<ProspectPropertyRow[]>(
+    const candidateRows = await prisma.$queryRawUnsafe<ProspectPropertyRow[]>(
       `SELECT
          source_record_id AS sourceRecordId,
          'California SCO' AS sourceName,
@@ -904,9 +905,16 @@ export async function listProspectPropertiesBySourceRecordIds(
        ORDER BY amount_num DESC, source_record_id ASC`,
       ...ids,
     );
+    for (const row of candidateRows) rowsById.set(row.sourceRecordId, row);
   }
 
-  return prisma.$queryRawUnsafe<ProspectPropertyRow[]>(
+  const missingIds = ids.filter((id) => !rowsById.has(id));
+  if (missingIds.length === 0) {
+    return ids.map((id) => rowsById.get(id)).filter((row): row is ProspectPropertyRow => Boolean(row));
+  }
+
+  const sourcePlaceholders = missingIds.map(() => "?").join(", ");
+  const sourceRows = await prisma.$queryRawUnsafe<ProspectPropertyRow[]>(
     `SELECT
        id AS sourceRecordId,
        'California SCO' AS sourceName,
@@ -920,11 +928,14 @@ export async function listProspectPropertiesBySourceRecordIds(
        city,
        address
      FROM source_records
-     WHERE id IN (${placeholders})
+     WHERE id IN (${sourcePlaceholders})
      ORDER BY CAST(REPLACE(REPLACE(REPLACE(TRIM(COALESCE(amount,'')), '$', ''), ',', ''), ' ', '') AS REAL) DESC,
               id ASC`,
-    ...ids,
+    ...missingIds,
   );
+  for (const row of sourceRows) rowsById.set(row.sourceRecordId, row);
+
+  return ids.map((id) => rowsById.get(id)).filter((row): row is ProspectPropertyRow => Boolean(row));
 }
 
 export async function searchRelatedProspectProperties(input: {
@@ -980,38 +991,38 @@ export async function searchRelatedProspectProperties(input: {
       take,
     );
     if (exactRows.length > 0) return exactRows;
-  } else {
-    const sourceExcludeClause =
-      exclude.length > 0 ? ` AND id NOT IN (${exclude.map(() => "?").join(", ")})` : "";
-    const exactRows = await prisma.$queryRawUnsafe<ProspectPropertyRow[]>(
-      `SELECT
-         id AS sourceRecordId,
-         'California SCO' AS sourceName,
-         owner_name AS reportedOwnerName,
-         holder_name AS holderName,
-         property_id AS propertyId,
-         amount,
-         TRIM(COALESCE(address, '') || CASE WHEN city IS NOT NULL AND city <> '' THEN ', ' || city ELSE '' END || CASE WHEN state IS NOT NULL AND state <> '' THEN ', ' || state ELSE '' END || CASE WHEN zip_code IS NOT NULL AND zip_code <> '' THEN ', ' || zip_code ELSE '' END) AS reportedAddress,
-         property_type AS accountType,
-         'high' AS confidence,
-         city,
-         address
-       FROM source_records
-       WHERE source = ?
-         AND owner_name_normalized = ?
-         AND owner_name_normalized <> ?
-         ${sourceExcludeClause}
-       ORDER BY CAST(REPLACE(REPLACE(REPLACE(TRIM(COALESCE(amount,'')), '$', ''), ',', ''), ' ', '') AS REAL) DESC,
-                id ASC
-       LIMIT ?`,
-      prospect.source,
-      normalized,
-      prospect.ownerNameNormalized,
-      ...exclude,
-      take,
-    );
-    if (exactRows.length > 0) return exactRows;
   }
+
+  const sourceExcludeClause =
+    exclude.length > 0 ? ` AND id NOT IN (${exclude.map(() => "?").join(", ")})` : "";
+  const sourceExactRows = await prisma.$queryRawUnsafe<ProspectPropertyRow[]>(
+    `SELECT
+       id AS sourceRecordId,
+       'California SCO' AS sourceName,
+       owner_name AS reportedOwnerName,
+       holder_name AS holderName,
+       property_id AS propertyId,
+       amount,
+       TRIM(COALESCE(address, '') || CASE WHEN city IS NOT NULL AND city <> '' THEN ', ' || city ELSE '' END || CASE WHEN state IS NOT NULL AND state <> '' THEN ', ' || state ELSE '' END || CASE WHEN zip_code IS NOT NULL AND zip_code <> '' THEN ', ' || zip_code ELSE '' END) AS reportedAddress,
+       property_type AS accountType,
+       'high' AS confidence,
+       city,
+       address
+     FROM source_records
+     WHERE source = ?
+       AND owner_name_normalized = ?
+       AND owner_name_normalized <> ?
+       ${sourceExcludeClause}
+     ORDER BY CAST(REPLACE(REPLACE(REPLACE(TRIM(COALESCE(amount,'')), '$', ''), ',', ''), ' ', '') AS REAL) DESC,
+              id ASC
+     LIMIT ?`,
+    prospect.source,
+    normalized,
+    prospect.ownerNameNormalized,
+    ...exclude,
+    take,
+  );
+  if (sourceExactRows.length > 0) return sourceExactRows;
 
   const excludeSet = new Set(exclude);
   const scannerMatches = await runScanner({ name: input.query.trim() });
