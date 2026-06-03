@@ -50,6 +50,7 @@ function matchLine(m: LeadBusinessMatchVm): string {
     m.amount || "amount not listed",
     `Property ID ${m.propertyId}`,
     m.holderName ? `Holder: ${m.holderName}` : "",
+    m.reportedAddress ? `Address: ${m.reportedAddress}` : "",
   ]
     .filter(Boolean)
     .join(" | ");

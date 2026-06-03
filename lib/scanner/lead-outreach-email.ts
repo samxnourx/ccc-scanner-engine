@@ -115,7 +115,7 @@ function propertyRows(matches: LeadOutreachEmailMatch[]): string {
     <p style="margin:0 0 4px;font-weight:600;color:#1a1a1a;">${owner}</p>
     <p style="margin:0 0 4px;color:#333;">${amount} &middot; ${holder}</p>
     <p style="margin:0 0 4px;font-size:13px;color:#555;">Property ID: ${propertyId}</p>
-    <p style="margin:0 0 4px;font-size:13px;color:#555;">${address}</p>
+    <p style="margin:0 0 4px;font-size:13px;color:#555;">Address: ${address}</p>
     <p style="margin:0;font-size:12px;color:#666;">${source} &middot; Match confidence: ${confidence}</p>
   </td>
 </tr>`;
