@@ -46,7 +46,7 @@ const GOVERNMENT_AGENCY_CONTACT_TEXT =
 const FIRM_FOOTER_CONTACT_TEXT =
   "677 S Magnolia Ave\nEl Cajon, CA 92020\nPhone: 833-844-7700\nFax: 833-962-6175\nwww.SamiNouriLawFirm.com";
 const CLAIM_ESCALATION_TEXT =
-  "If a claim is unreasonably delayed, denied, or handled inconsistently with the supporting records, our role includes reviewing the agency's position, organizing the evidence, responding to follow-up requests, and escalating the matter when appropriate.";
+  "If a claim is unreasonably delayed, denied, or handled inconsistently with the supporting records, our role includes reviewing the agency's position, organizing the evidence, responding to follow-up requests, and escalating the matter when appropriate, including by bringing an action in Superior Court when legally warranted.";
 
 function matchLine(m: LeadBusinessMatchVm): string {
   return [
