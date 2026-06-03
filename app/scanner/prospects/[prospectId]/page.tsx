@@ -8,12 +8,14 @@ import {
 import { EmailEnrichmentPanel } from "@/app/scanner/leads/EmailEnrichmentPanel";
 import { LeadContactEditor } from "@/app/scanner/leads/LeadContactEditor";
 import { ProspectActionButtons } from "@/app/scanner/prospects/ProspectActionButtons";
+import { LeadDiscoverySnapshotTable } from "@/components/LeadDiscoverySnapshotTable";
 import { formatUsdTotal, sumAmountFields } from "@/lib/scanner/amounts";
 import {
   getScannerProspect,
   listProspectProperties,
   parseProspectContactEmails,
 } from "@/lib/scanner/prospect-discovery";
+import type { NormalizedMatch } from "@/lib/scanner/types";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +51,18 @@ export default async function ProspectDetailPage({ params }: Props) {
     matchScore: null,
     notes: "Database-discovered prospect",
   }));
+  const snapshotMatches: NormalizedMatch[] = properties.map((row) => ({
+    id: `prospect-${prospect.id}-${row.sourceRecordId}`,
+    sourceName: row.sourceName,
+    reportedOwnerName: row.reportedOwnerName,
+    holderName: row.holderName,
+    propertyId: row.propertyId,
+    amount: row.amount ?? "",
+    reportedAddress: row.reportedAddress,
+    propertyType: row.accountType,
+    confidence: row.confidence,
+    notes: "Database-discovered prospect",
+  }));
 
   const hasSentEmail =
     prospect.status === "email_sent" && Boolean(prospect.outreachEmailText);
@@ -71,25 +85,34 @@ export default async function ProspectDetailPage({ params }: Props) {
       </div>
 
       {hasSentEmail ? (
-        <section className="border border-[#b8b8b4] bg-white p-4">
-          <div className="mb-3 text-sm text-neutral-700">
-            Sent to{" "}
-            <span className="font-mono text-xs">
-              {prospect.outreachEmailTo || "recipient not recorded"}
-            </span>
-            {prospect.outreachSentAt ? ` on ${prospect.outreachSentAt}` : ""}
-          </div>
-          <textarea
-            value={[
-              `To: ${prospect.outreachEmailTo || ""}`,
-              `Subject: ${prospect.outreachEmailSubject || ""}`,
-              "",
-              prospect.outreachEmailText || "",
-            ].join("\n")}
-            readOnly
-            className="h-96 w-full resize-y border border-[#b8b8b4] bg-[#fbfbfa] p-3 font-mono text-xs leading-5 text-neutral-900"
-          />
-        </section>
+        <>
+          <section className="border border-[#b8b8b4] bg-white p-4">
+            <div className="mb-3 text-sm text-neutral-700">
+              Sent to{" "}
+              <span className="font-mono text-xs">
+                {prospect.outreachEmailTo || "recipient not recorded"}
+              </span>
+              {prospect.outreachSentAt ? ` on ${prospect.outreachSentAt}` : ""}
+            </div>
+            <textarea
+              value={[
+                `To: ${prospect.outreachEmailTo || ""}`,
+                `Subject: ${prospect.outreachEmailSubject || ""}`,
+                "",
+                prospect.outreachEmailText || "",
+              ].join("\n")}
+              readOnly
+              className="h-96 w-full resize-y border border-[#b8b8b4] bg-[#fbfbfa] p-3 font-mono text-xs leading-5 text-neutral-900"
+            />
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-base font-semibold text-neutral-900">
+              Properties sent
+            </h2>
+            <LeadDiscoverySnapshotTable matches={snapshotMatches} />
+          </section>
+        </>
       ) : (
         <>
           <section className="border border-[#b8b8b4] bg-white p-4">
@@ -132,9 +155,9 @@ export default async function ProspectDetailPage({ params }: Props) {
         </>
       )}
 
-      {properties.length >= 1000 ? (
+      {properties.length >= 5000 ? (
         <p className="text-xs text-neutral-600">
-          Showing first 1,000 properties for this exact normalized owner.
+          Showing first 5,000 properties for this exact normalized owner.
         </p>
       ) : null}
     </div>
