@@ -5,6 +5,7 @@ import { useTransition } from "react";
 
 import {
   saveLeadDiscoveryEmailAction,
+  searchLeadDiscoveryRelatedPropertiesAction,
   sendLeadDiscoveryTestEmailAction,
 } from "@/app/actions/lead-discovery-actions";
 import { sendLeadBusinessTestEmailAction } from "@/app/scanner/leads/lead-batch-actions";
@@ -177,14 +178,22 @@ export function MatchEmailDraftPanel({
   }
 
   function searchRelatedProperties(): void {
-    if (prospectId == null) return;
+    if (prospectId == null && !leadDiscoveryId) return;
     setRelatedMessage(null);
     startRelatedTransition(async () => {
-      const result = await searchProspectRelatedPropertiesAction({
-        prospectId,
-        query: relatedQuery,
-        excludeSourceRecordIds: availableMatches.map((match) => String(match.id)),
-      });
+      const excludeSourceRecordIds = availableMatches.map((match) => String(match.id));
+      const result =
+        prospectId != null
+          ? await searchProspectRelatedPropertiesAction({
+              prospectId,
+              query: relatedQuery,
+              excludeSourceRecordIds,
+            })
+          : await searchLeadDiscoveryRelatedPropertiesAction({
+              leadDiscoveryId: leadDiscoveryId ?? "",
+              query: relatedQuery,
+              excludeSourceRecordIds,
+            });
       if (!result.ok) {
         setRelatedMessage(result.error);
         setRelatedResults([]);
@@ -411,7 +420,7 @@ export function MatchEmailDraftPanel({
         </table>
       </div>
 
-      {prospectId != null ? (
+      {prospectId != null || leadDiscoveryId ? (
         <section className="border border-[#b8b8b4] bg-white p-4">
           <h2 className="text-base font-semibold text-neutral-950">
             Add related properties

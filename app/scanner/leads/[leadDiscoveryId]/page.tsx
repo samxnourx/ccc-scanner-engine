@@ -7,6 +7,7 @@ import {
 } from "@/app/scanner/leads/batches/[batchId]/businesses/[businessId]/MatchEmailDraftPanel";
 import { EmailEnrichmentPanel } from "@/app/scanner/leads/EmailEnrichmentPanel";
 import { LeadContactEditor } from "@/app/scanner/leads/LeadContactEditor";
+import { LeadDiscoverySnapshotTable } from "@/components/LeadDiscoverySnapshotTable";
 import { formatUsdTotal, sumAmountFields } from "@/lib/scanner/amounts";
 import { getLeadDiscovery } from "@/lib/scanner/lead-discovery-store";
 
@@ -65,6 +66,8 @@ export default async function LeadDiscoveryDetailPage({ params }: Props) {
     notes: m.notes,
   }));
   const totalAmount = sumAmountFields(matches.map((m) => m.amount));
+  const outreachMatches =
+    lead.outreachMatches.length > 0 ? lead.outreachMatches : lead.matches;
   const isOutreachRecord = ["outreach_sent", "responded", "converted", "declined"].includes(
     lead.status,
   );
@@ -125,6 +128,12 @@ export default async function LeadDiscoveryDetailPage({ params }: Props) {
               className="h-96 w-full resize-y border border-[#b8b8b4] bg-[#fbfbfa] p-3 font-mono text-xs leading-5 text-neutral-900"
             />
           </div>
+          <section className="space-y-3">
+            <h2 className="text-base font-semibold text-neutral-900">
+              Properties sent
+            </h2>
+            <LeadDiscoverySnapshotTable matches={outreachMatches} />
+          </section>
         </div>
       ) : matches.length > 0 ? (
         <>

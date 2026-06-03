@@ -16,6 +16,9 @@ import {
   getLeadDiscovery,
   updateLeadDiscovery as persistLeadDiscovery,
 } from "@/lib/scanner/lead-discovery-store";
+import { normalizeText } from "@/lib/scanner/normalizeText";
+import { listProspectPropertiesBySourceRecordIds } from "@/lib/scanner/prospect-discovery";
+import { runScanner } from "@/lib/scanner/scanner-service";
 import {
   isLeadDiscoveryStatus,
   isLeadTargetType,
@@ -155,6 +158,98 @@ export async function updateLeadDiscoveryContactAction(input: {
   }
 }
 
+function prospectRowToNormalizedMatch(row: Awaited<ReturnType<typeof listProspectPropertiesBySourceRecordIds>>[number]): NormalizedMatch {
+  return {
+    id: String(row.sourceRecordId),
+    sourceName: row.sourceName,
+    reportedOwnerName: row.reportedOwnerName,
+    holderName: row.holderName,
+    propertyId: row.propertyId,
+    amount: row.amount ?? "",
+    reportedAddress: row.reportedAddress,
+    confidence: row.confidence,
+    notes: "Related owner-name search",
+    sourceRecordId: row.sourceRecordId,
+    propertyType: row.accountType,
+  };
+}
+
+export async function searchLeadDiscoveryRelatedPropertiesAction(input: {
+  leadDiscoveryId: string;
+  query: string;
+  excludeSourceRecordIds: string[];
+}): Promise<
+  | {
+      ok: true;
+      matches: Array<{
+        id: number;
+        sourceName: string;
+        reportedOwnerName: string;
+        holderName: string;
+        propertyId: string;
+        amount: string | null;
+        reportedAddress: string;
+        accountType: string | null;
+        confidence: string;
+        matchScore: null;
+        notes: string;
+      }>;
+    }
+  | { ok: false; error: string }
+> {
+  const leadDiscoveryId = input.leadDiscoveryId.trim();
+  const query = input.query.trim();
+  const excludeIds = input.excludeSourceRecordIds
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+
+  if (!leadDiscoveryId) return { ok: false, error: "Lead ID is required." };
+  if (query.length < 2) {
+    return { ok: false, error: "Enter an alternate owner name to search." };
+  }
+
+  try {
+    const lead = await getLeadDiscovery(leadDiscoveryId);
+    if (!lead) return { ok: false, error: "Saved lead not found." };
+
+    const currentOwnerNames = new Set(
+      lead.matches.map((match) => normalizeText(match.reportedOwnerName)),
+    );
+    const excludeSet = new Set(excludeIds);
+    const scannerMatches = await runScanner({ name: query });
+    const sourceRecordIds = scannerMatches
+      .map((match) => match.sourceRecordId)
+      .filter(
+        (id): id is number =>
+          typeof id === "number" && Number.isFinite(id) && !excludeSet.has(id),
+      )
+      .slice(0, 100);
+    const rows = await listProspectPropertiesBySourceRecordIds(sourceRecordIds);
+    const filtered = rows.filter(
+      (row) => !currentOwnerNames.has(normalizeText(row.reportedOwnerName)),
+    );
+    return {
+      ok: true,
+      matches: filtered.map((row) => ({
+        id: row.sourceRecordId,
+        sourceName: row.sourceName,
+        reportedOwnerName: row.reportedOwnerName,
+        holderName: row.holderName,
+        propertyId: row.propertyId,
+        amount: row.amount,
+        reportedAddress: row.reportedAddress,
+        accountType: row.accountType,
+        confidence: row.confidence,
+        matchScore: null,
+        notes: "Related owner-name search",
+      })),
+    };
+  } catch (e) {
+    console.error("[lead-discovery] related property search failed", e);
+    return { ok: false, error: "Could not search related properties." };
+  }
+}
+
 export async function sendLeadDiscoveryTestEmailAction(input: {
   leadDiscoveryId: string;
   matchIds: string[];
@@ -181,7 +276,23 @@ export async function sendLeadDiscoveryTestEmailAction(input: {
     const lead = await getLeadDiscovery(leadDiscoveryId);
     if (!lead) return { ok: false, error: "Saved lead not found." };
 
-    const selectedMatches = lead.matches.filter((match) => matchIds.has(match.id));
+    const defaultSelectedMatches = lead.matches.filter((match) => matchIds.has(match.id));
+    const foundIds = new Set(defaultSelectedMatches.map((match) => match.id));
+    const missingIds = [...matchIds]
+      .filter((matchId) => !foundIds.has(matchId))
+      .map((matchId) => Number(matchId))
+      .filter((matchId) => Number.isFinite(matchId) && matchId > 0);
+    const relatedRows = await listProspectPropertiesBySourceRecordIds(missingIds);
+    const relatedMatches = relatedRows.map(prospectRowToNormalizedMatch);
+    const selectedMatchesById = new Map(
+      [...defaultSelectedMatches, ...relatedMatches].map((match) => [
+        match.id,
+        match,
+      ]),
+    );
+    const selectedMatches = [...matchIds]
+      .map((matchId) => selectedMatchesById.get(matchId))
+      .filter((match): match is NormalizedMatch => Boolean(match));
     if (selectedMatches.length !== matchIds.size) {
       return { ok: false, error: "One or more selected matches were not found." };
     }
@@ -231,6 +342,7 @@ export async function sendLeadDiscoveryTestEmailAction(input: {
       outreachPortalUrl: outreach.confirmationUrl,
       outreachIntakeId: null,
       outreachSentAt: sentAtIso,
+      outreachMatches: selectedMatches,
       notes: `${lead.notes ? `${lead.notes}\n` : ""}[recovery email] Sent ${selectedMatches.length} selected matches to ${recipientLabel} on ${sentAtIso}\n[outreach] Pending scanner confirmation: ${outreach.confirmationUrl}`.slice(
         0,
         8000,

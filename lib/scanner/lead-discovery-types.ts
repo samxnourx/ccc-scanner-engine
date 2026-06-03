@@ -45,6 +45,7 @@ export type LeadDiscoveryRecord = {
   matchCount: number;
   estimatedTotalAmount: number | null;
   matches: NormalizedMatch[];
+  outreachMatches: NormalizedMatch[];
   outreachEmailTo: string | null;
   outreachEmailSubject: string | null;
   outreachEmailText: string | null;

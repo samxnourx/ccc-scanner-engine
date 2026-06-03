@@ -47,6 +47,7 @@ export type LeadDiscoveryPersisted = {
   matchCount: number;
   estimatedTotalAmount: number | null;
   matches?: NormalizedMatch[];
+  outreachMatches?: NormalizedMatch[];
   outreachEmailTo?: string | null;
   outreachEmailSubject?: string | null;
   outreachEmailText?: string | null;
@@ -144,6 +145,9 @@ function persistedToRecord(p: LeadDiscoveryPersisted): LeadDiscoveryRecord {
       .map(parseMatchRow)
       .filter(Boolean) as NormalizedMatch[];
   }
+  const outreachMatches = Array.isArray(p.outreachMatches)
+    ? (p.outreachMatches.map(parseMatchRow).filter(Boolean) as NormalizedMatch[])
+    : [];
 
   const status = isLeadDiscoveryStatus(p.status) ? p.status : "detected";
   const targetType =
@@ -163,6 +167,7 @@ function persistedToRecord(p: LeadDiscoveryPersisted): LeadDiscoveryRecord {
     estimatedTotalAmount:
       typeof p.estimatedTotalAmount === "number" ? p.estimatedTotalAmount : null,
     matches,
+    outreachMatches,
     outreachEmailTo:
       typeof p.outreachEmailTo === "string" ? p.outreachEmailTo : null,
     outreachEmailSubject:
@@ -306,6 +311,7 @@ export type LeadDiscoveryUpdatePatch = {
   outreachPortalUrl?: string | null;
   outreachIntakeId?: string | null;
   outreachSentAt?: string | null;
+  outreachMatches?: NormalizedMatch[];
 };
 
 export async function updateLeadDiscovery(
@@ -355,6 +361,10 @@ export async function updateLeadDiscovery(
       patch.outreachSentAt !== undefined
         ? patch.outreachSentAt
         : cur.outreachSentAt,
+    outreachMatches:
+      patch.outreachMatches !== undefined
+        ? patch.outreachMatches.map((m) => ({ ...m }))
+        : cur.outreachMatches,
     updatedAt: now,
   };
 
