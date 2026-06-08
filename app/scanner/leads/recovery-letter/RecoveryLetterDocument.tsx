@@ -51,11 +51,12 @@ export function RecoveryLetterDocument({
   const lines = addressLines(recipientAddress);
 
   return (
-    <article className="print-letter-root">
+    <>
       <div className="print-toolbar no-print">
         <PrintLetterButton />
       </div>
 
+    <article className="print-letter-root">
       <header className="letterhead">
         {/* eslint-disable-next-line @next/next/no-img-element -- Print letter embeds a local letterhead asset as a data URL. */}
         <img src={logoDataUrl} alt="Sami Nouri Law Firm Unclaimed Property Attorneys" />
@@ -81,7 +82,9 @@ export function RecoveryLetterDocument({
         )}
       </section>
 
-      <p>Re: Possible unclaimed property records totaling {totalText}</p>
+      <p className="letter-subject">
+        Re: Possible unclaimed property records totaling {totalText}
+      </p>
 
       <p>Hello,</p>
 
@@ -162,5 +165,6 @@ export function RecoveryLetterDocument({
         Unclaimed Property Attorneys
       </p>
     </article>
+    </>
   );
 }
