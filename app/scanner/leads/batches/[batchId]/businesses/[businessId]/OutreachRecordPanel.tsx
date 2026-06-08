@@ -72,6 +72,14 @@ export function OutreachRecordPanel({
             {intakeId ? <p className="mt-1">Intake: {intakeId}</p> : null}
           </div>
           <div className="flex flex-wrap gap-2">
+            <a
+              href={`/scanner/leads/batches/${batchId}/businesses/${businessId}/letter`}
+              target="_blank"
+              rel="noreferrer"
+              className="border border-[#6d6d68] bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-[#ececea]"
+            >
+              Print recovery letter
+            </a>
             <button
               type="button"
               disabled={pending}

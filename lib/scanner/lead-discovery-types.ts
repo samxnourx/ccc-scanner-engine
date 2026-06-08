@@ -52,6 +52,7 @@ export type LeadDiscoveryRecord = {
   outreachPortalUrl: string | null;
   outreachIntakeId: string | null;
   outreachSentAt: string | null;
+  mailingAddress: string | null;
   notes: string;
   createdAt: string;
   updatedAt: string;

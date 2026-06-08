@@ -1,0 +1,113 @@
+@page {
+  size: letter;
+  margin: 0.55in 0.65in;
+}
+
+body:has(.print-letter-root) header.app-site-header,
+body:has(.print-letter-root) .app-content-shell > nav {
+  display: none;
+}
+
+body:has(.print-letter-root) {
+  background: #f4f4f2;
+}
+
+.print-letter-root {
+  max-width: 8.5in;
+  min-height: 11in;
+  margin: 0 auto;
+  background: #fff;
+  color: #111;
+  padding: 0.55in 0.62in;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11.5pt;
+  line-height: 1.42;
+}
+
+.print-toolbar {
+  margin: 0 0 18px;
+}
+
+.print-toolbar button {
+  border: 1px solid #6d6d68;
+  background: #ececea;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.letterhead {
+  display: grid;
+  grid-template-columns: minmax(0, 3.6in) 1fr;
+  gap: 0.35in;
+  align-items: start;
+  margin-bottom: 0.32in;
+}
+
+.letterhead img {
+  display: block;
+  width: 3.35in;
+  height: auto;
+}
+
+.letterhead-contact {
+  text-align: right;
+  font-size: 10.5pt;
+  line-height: 1.35;
+}
+
+.letter-date {
+  margin: 0 0 0.2in;
+}
+
+.recipient-block {
+  margin: 0 0 0.24in;
+  line-height: 1.35;
+}
+
+.missing-address {
+  color: #9b1c1c;
+}
+
+.property-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.16in 0 0.2in;
+  font-size: 9.5pt;
+}
+
+.property-table th,
+.property-table td {
+  border: 1px solid #cfcfca;
+  padding: 5px 6px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.property-table th {
+  background: #ececea;
+  font-weight: 700;
+}
+
+.private-firm-disclosure {
+  font-size: 9.8pt;
+}
+
+@media print {
+  body:has(.print-letter-root) {
+    background: #fff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-letter-root {
+    max-width: none;
+    min-height: auto;
+    margin: 0;
+    padding: 0;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

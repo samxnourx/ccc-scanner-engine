@@ -99,6 +99,7 @@ export async function updateProspectContactAction(input: {
   emails: string;
   phone: string;
   website: string;
+  mailingAddress: string;
 }): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
   const id = Number(input.prospectId);
   const businessName = input.businessName.trim();
@@ -120,6 +121,7 @@ export async function updateProspectContactAction(input: {
       emails,
       phone: input.phone.trim(),
       website: input.website.trim(),
+      mailingAddress: input.mailingAddress.trim(),
     });
     revalidatePath("/scanner/prospects/candidates");
     revalidatePath(`/scanner/prospects/${id}`);

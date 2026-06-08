@@ -132,6 +132,7 @@ export async function updateLeadDiscoveryContactAction(input: {
   id: string;
   targetName: string;
   email: string;
+  mailingAddress: string;
 }): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
   const id = input.id.trim();
   const targetName = input.targetName.trim();
@@ -148,6 +149,7 @@ export async function updateLeadDiscoveryContactAction(input: {
     await persistLeadDiscovery(id, {
       targetName,
       outreachEmailTo: email || null,
+      mailingAddress: input.mailingAddress.trim() || null,
     });
     revalidatePath("/scanner/leads");
     revalidatePath(`/scanner/leads/${encodeURIComponent(id)}`);

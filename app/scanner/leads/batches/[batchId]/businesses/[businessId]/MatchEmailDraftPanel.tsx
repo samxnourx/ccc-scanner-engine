@@ -38,6 +38,7 @@ type Props = {
   businessName: string;
   emails: string[];
   matches: LeadBusinessMatchVm[];
+  letterUrl?: string;
 };
 
 const PRIVATE_FIRM_DISCLOSURE =
@@ -50,6 +51,8 @@ const CLAIM_ESCALATION_TEXT =
   "If a claim is unreasonably delayed, denied, or handled inconsistently with the supporting records, our role includes reviewing the agency's position, organizing the evidence, responding to follow-up requests, and escalating the matter when appropriate, including by bringing an action in Superior Court when legally warranted.";
 const UNCLAIMED_PROPERTY_EXPLANATION =
   "Unclaimed property is usually money being held by a state or other government agency because it never reached the intended owner. Under unclaimed property laws, businesses and institutions must report and transfer certain unpaid funds to the government when they cannot deliver them. These records can include insurance payments, refunds, wage checks, bank balances, or other funds that people and businesses often never learn are waiting for them.";
+const PHONE_REPLY_TEXT =
+  "If you would rather speak with someone first, please reply to this email with a phone number, or call 833-844-7700 and leave a message with your name and the reason for your call. A member of our team will follow up.";
 
 function matchLine(m: LeadBusinessMatchVm): string {
   return [
@@ -95,7 +98,7 @@ Sami Nouri Law Firm handles this service for a 10% processing fee from recovered
 Possible listings for review (${input.selectedMatches.length.toLocaleString("en-US")}, totaling ${selectedTotalText}):
 ${lines}
 
-If any listing appears to relate to your organization, please reply to this email and our unclaimed property team can provide next steps.
+If any listing appears to relate to your organization, please reply to this email and our unclaimed property team can provide next steps. ${PHONE_REPLY_TEXT}
 
 ${PRIVATE_FIRM_DISCLOSURE}
 
@@ -120,6 +123,7 @@ export function MatchEmailDraftPanel({
   businessName,
   emails,
   matches,
+  letterUrl,
 }: Props) {
   const [availableMatches, setAvailableMatches] =
     useState<LeadBusinessMatchVm[]>(matches);
@@ -163,6 +167,20 @@ export function MatchEmailDraftPanel({
     () => buildSubject(businessName, selectedTotal),
     [businessName, selectedTotal],
   );
+  const selectedMatchParam = useMemo(
+    () =>
+      selectedMatches
+        .map((m) => String(m.id))
+        .filter(Boolean)
+        .join(","),
+    [selectedMatches],
+  );
+  const printLetterHref = useMemo(() => {
+    if (!letterUrl) return "";
+    return selectedMatchParam
+      ? `${letterUrl}?matches=${encodeURIComponent(selectedMatchParam)}`
+      : letterUrl;
+  }, [letterUrl, selectedMatchParam]);
 
   function toggle(id: number | string): void {
     const key = String(id);
@@ -549,6 +567,16 @@ export function MatchEmailDraftPanel({
             >
               {pending ? "Sending..." : "Send recovery email"}
             </button>
+            {letterUrl ? (
+              <a
+                href={printLetterHref}
+                target="_blank"
+                rel="noreferrer"
+                className="shrink-0 border border-[#6d6d68] bg-white px-4 py-2 text-sm font-medium hover:bg-[#ececea]"
+              >
+                Print recovery letter
+              </a>
+            ) : null}
           </div>
           <textarea
             value={`To: ${recipientEmail || "(add recipient)"}\nSubject: ${subject}\n\n${draft}`}

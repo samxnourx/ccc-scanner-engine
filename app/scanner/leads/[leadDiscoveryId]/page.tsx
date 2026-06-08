@@ -93,6 +93,16 @@ export default async function LeadDiscoveryDetailPage({ params }: Props) {
       {isOutreachRecord && lead.outreachEmailText ? (
         <div className="space-y-4">
           <div className="border border-[#b8b8b4] bg-white p-4 text-sm">
+            <div className="mb-3">
+              <a
+                href={`/scanner/leads/${encodeURIComponent(lead.leadDiscoveryId)}/letter`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block border border-[#6d6d68] bg-white px-4 py-2 text-sm font-medium hover:bg-[#ececea]"
+              >
+                Print recovery letter
+              </a>
+            </div>
             <p>
               Status: <strong>{lead.status.replace(/_/g, " ")}</strong>
             </p>
@@ -152,6 +162,7 @@ export default async function LeadDiscoveryDetailPage({ params }: Props) {
               leadDiscoveryId: lead.leadDiscoveryId,
               name: lead.targetName,
               emails: leadEmails,
+              mailingAddress: lead.mailingAddress ?? "",
             }}
           />
           <MatchEmailDraftPanel
@@ -159,6 +170,7 @@ export default async function LeadDiscoveryDetailPage({ params }: Props) {
             businessName={lead.targetName}
             emails={leadEmails}
             matches={matches}
+            letterUrl={`/scanner/leads/${encodeURIComponent(lead.leadDiscoveryId)}/letter`}
           />
         </>
       ) : (

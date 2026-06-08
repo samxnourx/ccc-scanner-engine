@@ -14,6 +14,7 @@ type BatchLeadInput = {
   emails: string[];
   phone: string;
   website: string;
+  mailingAddress: string;
 };
 
 type DiscoveryLeadInput = {
@@ -21,6 +22,7 @@ type DiscoveryLeadInput = {
   leadDiscoveryId: string;
   name: string;
   emails: string[];
+  mailingAddress: string;
 };
 
 type ProspectLeadInput = {
@@ -30,6 +32,7 @@ type ProspectLeadInput = {
   emails: string[];
   phone: string;
   website: string;
+  mailingAddress: string;
 };
 
 type Props = {
@@ -45,6 +48,7 @@ export function LeadContactEditor({ lead }: Props) {
   const [website, setWebsite] = useState(
     lead.kind === "batch" || lead.kind === "prospect" ? lead.website : "",
   );
+  const [mailingAddress, setMailingAddress] = useState(lead.mailingAddress);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -60,6 +64,7 @@ export function LeadContactEditor({ lead }: Props) {
               emails,
               phone,
               website,
+              mailingAddress,
             })
           : lead.kind === "prospect"
             ? await updateProspectContactAction({
@@ -68,11 +73,13 @@ export function LeadContactEditor({ lead }: Props) {
                 emails,
                 phone,
                 website,
+                mailingAddress,
               })
             : await updateLeadDiscoveryContactAction({
                 id: lead.leadDiscoveryId,
                 targetName: name,
                 email: emails,
+                mailingAddress,
               });
       setMessage(result.ok ? result.message : result.error);
     });
@@ -127,6 +134,18 @@ export function LeadContactEditor({ lead }: Props) {
             </label>
           </>
         ) : null}
+        <label className="block md:col-span-2">
+          <span className="mb-1 block text-xs uppercase text-neutral-600">
+            Mailing address for letter
+          </span>
+          <textarea
+            value={mailingAddress}
+            onChange={(e) => setMailingAddress(e.target.value)}
+            rows={3}
+            placeholder={"Business Name\nStreet Address\nCity, ST ZIP"}
+            className="w-full resize-y border border-[#b8b8b4] bg-white px-3 py-2 font-mono text-sm"
+          />
+        </label>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button

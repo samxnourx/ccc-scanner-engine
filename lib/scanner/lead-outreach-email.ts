@@ -176,14 +176,19 @@ export function buildLeadOutreachEmailPayload(
       ? input.matches.map((match) => `- ${textMatchLine(match)}`).join("\n")
       : "- No property rows were selected.";
 
+  const phoneReplyText =
+    "If you would rather speak with someone first, please reply to this email with a phone number, or call 833-844-7700 and leave a message with your name and the reason for your call. A member of our team will follow up.";
+
   const nextStepText = confirmUrl
     ? [
         "Please use the secure link below to review the possible properties, confirm whether any belong to your organization, and provide the basic business information needed for our review team to evaluate next steps:",
         "",
         "Confirm your properties:",
         confirmUrl,
+        "",
+        phoneReplyText,
       ].join("\n")
-    : "If any listing appears to relate to your organization, please reply to this email and our unclaimed property team can provide next steps.";
+    : `If any listing appears to relate to your organization, please reply to this email and our unclaimed property team can provide next steps. ${phoneReplyText}`;
 
   const text = [
     `Hello,`,
@@ -236,8 +241,9 @@ export function buildLeadOutreachEmailPayload(
         </tr>
       </table>
       <p style="margin:0 0 6px;font-size:13px;color:#555;">Secure review link:</p>
-      <p style="margin:0 0 20px;word-break:break-all;font-size:13px;color:#444;"><a href="${escapeAttr(confirmUrl)}" style="color:#333;text-decoration:underline;">${escapeHtml(confirmUrl)}</a></p>`
-    : `<p style="margin:0 0 20px;">If any listing appears to relate to your organization, please reply to this email and our unclaimed property team can provide next steps.</p>`;
+      <p style="margin:0 0 14px;word-break:break-all;font-size:13px;color:#444;"><a href="${escapeAttr(confirmUrl)}" style="color:#333;text-decoration:underline;">${escapeHtml(confirmUrl)}</a></p>
+      <p style="margin:0 0 20px;">${escapeHtml(phoneReplyText)}</p>`
+    : `<p style="margin:0 0 20px;">If any listing appears to relate to your organization, please reply to this email and our unclaimed property team can provide next steps. ${escapeHtml(phoneReplyText)}</p>`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">

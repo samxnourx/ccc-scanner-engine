@@ -111,6 +111,16 @@ export default async function CandidateBusinessPage({
       {hasSentEmail ? (
         <>
           <section className="border border-[#b8b8b4] bg-white p-4">
+            <div className="mb-3">
+              <a
+                href={`/scanner/prospects/${prospect.id}/letter`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block border border-[#6d6d68] bg-white px-4 py-2 text-sm font-medium hover:bg-[#ececea]"
+              >
+                Print recovery letter
+              </a>
+            </div>
             <div className="mb-3 text-sm text-neutral-700">
               Sent to{" "}
               <span className="font-mono text-xs">
@@ -157,6 +167,7 @@ export default async function CandidateBusinessPage({
               emails: contactEmails,
               phone: prospect.contactPhone ?? "",
               website: prospect.contactWebsite ?? "",
+              mailingAddress: prospect.contactMailingAddress ?? "",
             }}
           />
 
@@ -178,6 +189,7 @@ export default async function CandidateBusinessPage({
             businessName={prospect.displayName}
             emails={contactEmails}
             matches={matches}
+            letterUrl={`/scanner/prospects/${prospect.id}/letter`}
           />
         </>
       )}

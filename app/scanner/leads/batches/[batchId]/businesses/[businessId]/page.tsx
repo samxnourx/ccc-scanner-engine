@@ -122,6 +122,7 @@ export default async function LeadBusinessMatchesPage(props: {
               emails: leadEmails,
               phone: lead.phone ?? "",
               website: lead.website,
+              mailingAddress: lead.address ?? "",
             }}
           />
           <MatchEmailDraftPanel
@@ -130,6 +131,7 @@ export default async function LeadBusinessMatchesPage(props: {
             businessName={lead.businessName}
             emails={leadEmails}
             matches={matches}
+            letterUrl={`/scanner/leads/batches/${batchId}/businesses/${businessId}/letter`}
           />
         </>
       ) : (

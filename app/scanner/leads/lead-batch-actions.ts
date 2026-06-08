@@ -156,6 +156,7 @@ export async function updateLeadBusinessContactAction(input: {
   emails: string;
   phone: string;
   website: string;
+  mailingAddress: string;
 }): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
   try {
     const batchId = Number(input.batchId);
@@ -192,6 +193,7 @@ export async function updateLeadBusinessContactAction(input: {
         emailsJson: emails.length > 0 ? JSON.stringify(emails) : null,
         phone: input.phone.trim() || null,
         website: input.website.trim(),
+        address: input.mailingAddress.trim() || null,
         notes: `${lead.notes ? `${lead.notes}\n` : ""}[contact] Updated contact info ${new Date().toISOString()}.`.slice(
           0,
           8000,
