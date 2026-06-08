@@ -179,6 +179,15 @@ export function RecoveryLetterDocument({
         our services.
       </p>
 
+      <p>
+        Thank you,
+        <br />
+        <br />
+        Sami Nouri Law Firm
+        <br />
+        Unclaimed Property Attorneys
+      </p>
+
       <section className="agency-contact-notice">
         <p>
           <strong>Government agency contact information referenced:</strong>
@@ -189,15 +198,6 @@ export function RecoveryLetterDocument({
         <div>Phone: {SCO_CONTACT.phone}</div>
         <div>Website: {SCO_CONTACT.website}</div>
       </section>
-
-      <p>
-        Thank you,
-        <br />
-        <br />
-        Sami Nouri Law Firm
-        <br />
-        Unclaimed Property Attorneys
-      </p>
     </article>
     </>
   );
