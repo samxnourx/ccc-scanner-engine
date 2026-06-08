@@ -140,6 +140,19 @@ body:has(.print-letter-root) {
   font-size: 9.2pt;
 }
 
+.agency-contact-notice {
+  border: 1px solid #cfcfca;
+  background: #fbfbfa;
+  margin: 0.02in 0 0.14in;
+  padding: 0.07in 0.09in;
+  font-size: 8.9pt;
+  line-height: 1.25;
+}
+
+.agency-contact-notice p {
+  margin: 0 0 0.03in;
+}
+
 @media print {
   body:has(.print-letter-root) {
     background: #fff;

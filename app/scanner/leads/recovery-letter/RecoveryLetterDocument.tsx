@@ -25,6 +25,14 @@ const UNCLAIMED_PROPERTY_EXPLANATION =
 const CLAIM_ESCALATION_TEXT =
   "If a claim is unreasonably delayed, denied, or handled inconsistently with the supporting records, our role includes reviewing the agency's position, organizing the evidence, responding to follow-up requests, and escalating the matter when appropriate, including by bringing an action in Superior Court when legally warranted.";
 
+const SCO_CONTACT = {
+  agency: "California State Controller's Office",
+  division: "Unclaimed Property Division",
+  mailing: "P.O. Box 942850, Sacramento, CA 94250-5873",
+  phone: "(800) 992-4647",
+  website: "claimit.ca.gov",
+};
+
 function formatDate(): string {
   return new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -170,6 +178,17 @@ export function RecoveryLetterDocument({
         property directly through the applicable government agency without using
         our services.
       </p>
+
+      <section className="agency-contact-notice">
+        <p>
+          <strong>Government agency contact information referenced:</strong>
+        </p>
+        <div>{SCO_CONTACT.agency}</div>
+        <div>{SCO_CONTACT.division}</div>
+        <div>Mailing claims and general information: {SCO_CONTACT.mailing}</div>
+        <div>Phone: {SCO_CONTACT.phone}</div>
+        <div>Website: {SCO_CONTACT.website}</div>
+      </section>
 
       <p>
         Thank you,
