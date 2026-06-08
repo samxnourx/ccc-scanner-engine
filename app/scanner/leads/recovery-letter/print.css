@@ -86,16 +86,44 @@ body:has(.print-letter-root) {
   width: 100%;
   border-collapse: collapse;
   margin: 0.09in 0 0.14in;
-  font-size: 8.8pt;
+  table-layout: fixed;
+  font-size: 7.45pt;
+  line-height: 1.18;
   page-break-inside: auto;
+}
+
+.property-table .source-col {
+  width: 8%;
+}
+
+.property-table .owner-col {
+  width: 20%;
+}
+
+.property-table .address-col {
+  width: 28%;
+}
+
+.property-table .holder-col {
+  width: 23%;
+}
+
+.property-table .property-id-col {
+  width: 11%;
+}
+
+.property-table .amount-col {
+  width: 10%;
 }
 
 .property-table th,
 .property-table td {
   border: 1px solid #cfcfca;
-  padding: 4px 5px;
+  padding: 3px 4px;
   vertical-align: top;
   text-align: left;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .property-table tr {

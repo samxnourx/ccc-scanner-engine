@@ -40,6 +40,11 @@ function addressLines(address: string | null): string[] {
     .filter(Boolean);
 }
 
+function compactSourceName(sourceName: string): string {
+  const display = displayLeadOutreachSourceName(sourceName);
+  return display === "California State Controller's Office" ? "CA SCO" : display;
+}
+
 export function RecoveryLetterDocument({
   logoDataUrl,
   recipientName,
@@ -119,10 +124,19 @@ export function RecoveryLetterDocument({
       </p>
 
       <table className="property-table">
+        <colgroup>
+          <col className="source-col" />
+          <col className="owner-col" />
+          <col className="address-col" />
+          <col className="holder-col" />
+          <col className="property-id-col" />
+          <col className="amount-col" />
+        </colgroup>
         <thead>
           <tr>
             <th>Source</th>
             <th>Reported owner</th>
+            <th>Reported address</th>
             <th>Holder</th>
             <th>Property ID</th>
             <th>Amount</th>
@@ -131,8 +145,9 @@ export function RecoveryLetterDocument({
         <tbody>
           {matches.map((match) => (
             <tr key={`${match.sourceName}-${match.propertyId}`}>
-              <td>{displayLeadOutreachSourceName(match.sourceName)}</td>
+              <td>{compactSourceName(match.sourceName)}</td>
               <td>{match.reportedOwnerName}</td>
+              <td>{match.reportedAddress || "-"}</td>
               <td>{match.holderName || "-"}</td>
               <td>{match.propertyId || "-"}</td>
               <td>{match.amount || "-"}</td>
