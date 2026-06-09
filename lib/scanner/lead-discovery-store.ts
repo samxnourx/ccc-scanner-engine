@@ -54,6 +54,8 @@ export type LeadDiscoveryPersisted = {
   outreachPortalUrl?: string | null;
   outreachIntakeId?: string | null;
   outreachSentAt?: string | null;
+  phone?: string | null;
+  website?: string | null;
   mailingAddress?: string | null;
   /** @deprecated use matches */
   matchesSnapshot?: unknown;
@@ -181,6 +183,8 @@ function persistedToRecord(p: LeadDiscoveryPersisted): LeadDiscoveryRecord {
       typeof p.outreachIntakeId === "string" ? p.outreachIntakeId : null,
     outreachSentAt:
       typeof p.outreachSentAt === "string" ? p.outreachSentAt : null,
+    phone: typeof p.phone === "string" ? p.phone : null,
+    website: typeof p.website === "string" ? p.website : null,
     mailingAddress:
       typeof p.mailingAddress === "string" ? p.mailingAddress : null,
     notes: typeof p.notes === "string" ? p.notes : "",
@@ -314,6 +318,8 @@ export type LeadDiscoveryUpdatePatch = {
   outreachPortalUrl?: string | null;
   outreachIntakeId?: string | null;
   outreachSentAt?: string | null;
+  phone?: string | null;
+  website?: string | null;
   mailingAddress?: string | null;
   outreachMatches?: NormalizedMatch[];
 };
@@ -365,6 +371,8 @@ export async function updateLeadDiscovery(
       patch.outreachSentAt !== undefined
         ? patch.outreachSentAt
         : cur.outreachSentAt,
+    phone: patch.phone !== undefined ? patch.phone : cur.phone,
+    website: patch.website !== undefined ? patch.website : cur.website,
     mailingAddress:
       patch.mailingAddress !== undefined
         ? patch.mailingAddress

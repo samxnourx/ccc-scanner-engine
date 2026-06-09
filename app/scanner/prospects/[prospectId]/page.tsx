@@ -147,6 +147,7 @@ export default async function ProspectDetailPage({ params }: Props) {
               phone: prospect.contactPhone ?? "",
               website: prospect.contactWebsite ?? "",
               mailingAddress: prospect.contactMailingAddress ?? "",
+              notes: prospect.contactNotes ?? "",
             }}
           />
 

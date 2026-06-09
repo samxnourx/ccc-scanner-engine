@@ -15,6 +15,7 @@ type BatchLeadInput = {
   phone: string;
   website: string;
   mailingAddress: string;
+  notes: string;
 };
 
 type DiscoveryLeadInput = {
@@ -23,6 +24,9 @@ type DiscoveryLeadInput = {
   name: string;
   emails: string[];
   mailingAddress: string;
+  phone: string;
+  website: string;
+  notes: string;
 };
 
 type ProspectLeadInput = {
@@ -33,6 +37,7 @@ type ProspectLeadInput = {
   phone: string;
   website: string;
   mailingAddress: string;
+  notes: string;
 };
 
 type Props = {
@@ -42,13 +47,10 @@ type Props = {
 export function LeadContactEditor({ lead }: Props) {
   const [name, setName] = useState(lead.name);
   const [emails, setEmails] = useState(lead.emails.join("\n"));
-  const [phone, setPhone] = useState(
-    lead.kind === "batch" || lead.kind === "prospect" ? lead.phone : "",
-  );
-  const [website, setWebsite] = useState(
-    lead.kind === "batch" || lead.kind === "prospect" ? lead.website : "",
-  );
+  const [phone, setPhone] = useState(lead.phone);
+  const [website, setWebsite] = useState(lead.website);
   const [mailingAddress, setMailingAddress] = useState(lead.mailingAddress);
+  const [notes, setNotes] = useState(lead.notes);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -65,6 +67,7 @@ export function LeadContactEditor({ lead }: Props) {
               phone,
               website,
               mailingAddress,
+              notes,
             })
           : lead.kind === "prospect"
             ? await updateProspectContactAction({
@@ -74,12 +77,16 @@ export function LeadContactEditor({ lead }: Props) {
                 phone,
                 website,
                 mailingAddress,
+                notes,
               })
             : await updateLeadDiscoveryContactAction({
                 id: lead.leadDiscoveryId,
                 targetName: name,
                 email: emails,
+                phone,
+                website,
                 mailingAddress,
+                notes,
               });
       setMessage(result.ok ? result.message : result.error);
     });
@@ -105,35 +112,31 @@ export function LeadContactEditor({ lead }: Props) {
           <textarea
             value={emails}
             onChange={(e) => setEmails(e.target.value)}
-            rows={lead.kind === "batch" || lead.kind === "prospect" ? 3 : 1}
+            rows={3}
             placeholder="name@example.com"
             className="w-full resize-y border border-[#b8b8b4] bg-white px-3 py-2 font-mono text-sm"
           />
         </label>
-        {lead.kind === "batch" || lead.kind === "prospect" ? (
-          <>
-            <label className="block">
-              <span className="mb-1 block text-xs uppercase text-neutral-600">
-                Phone
-              </span>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full border border-[#b8b8b4] bg-white px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs uppercase text-neutral-600">
-                Website
-              </span>
-              <input
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                className="w-full border border-[#b8b8b4] bg-white px-3 py-2 text-sm"
-              />
-            </label>
-          </>
-        ) : null}
+        <label className="block">
+          <span className="mb-1 block text-xs uppercase text-neutral-600">
+            Phone
+          </span>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="w-full border border-[#b8b8b4] bg-white px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs uppercase text-neutral-600">
+            Website
+          </span>
+          <input
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            className="w-full border border-[#b8b8b4] bg-white px-3 py-2 text-sm"
+          />
+        </label>
         <label className="block md:col-span-2">
           <span className="mb-1 block text-xs uppercase text-neutral-600">
             Mailing address for letter
@@ -144,6 +147,18 @@ export function LeadContactEditor({ lead }: Props) {
             rows={3}
             placeholder={"Business Name\nStreet Address\nCity, ST ZIP"}
             className="w-full resize-y border border-[#b8b8b4] bg-white px-3 py-2 font-mono text-sm"
+          />
+        </label>
+        <label className="block md:col-span-2">
+          <span className="mb-1 block text-xs uppercase text-neutral-600">
+            Notes
+          </span>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={4}
+            placeholder="Internal notes about address source, entity status, contact attempts, or follow-up."
+            className="w-full resize-y border border-[#b8b8b4] bg-white px-3 py-2 text-sm"
           />
         </label>
       </div>

@@ -168,6 +168,7 @@ export default async function CandidateBusinessPage({
               phone: prospect.contactPhone ?? "",
               website: prospect.contactWebsite ?? "",
               mailingAddress: prospect.contactMailingAddress ?? "",
+              notes: prospect.contactNotes ?? "",
             }}
           />
 

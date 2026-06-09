@@ -24,6 +24,7 @@ export type ScannerProspect = {
   contactPhone: string | null;
   contactWebsite: string | null;
   contactMailingAddress: string | null;
+  contactNotes: string | null;
   outreachEmailTo: string | null;
   outreachEmailSubject: string | null;
   outreachEmailText: string | null;
@@ -152,6 +153,7 @@ export async function ensureScannerProspectsTable(): Promise<void> {
     ["contact_phone", "TEXT"],
     ["contact_website", "TEXT"],
     ["contact_mailing_address", "TEXT"],
+    ["contact_notes", "TEXT"],
     ["outreach_email_to", "TEXT"],
     ["outreach_email_subject", "TEXT"],
     ["outreach_email_text", "TEXT"],
@@ -356,6 +358,7 @@ export async function listScannerProspects(input?: {
        contact_phone AS contactPhone,
        contact_website AS contactWebsite,
        contact_mailing_address AS contactMailingAddress,
+       contact_notes AS contactNotes,
        outreach_email_to AS outreachEmailTo,
        outreach_email_subject AS outreachEmailSubject,
        outreach_email_text AS outreachEmailText,
@@ -604,6 +607,7 @@ export async function getOrCreateScannerProspectFromCandidate(input: {
        contact_phone AS contactPhone,
        contact_website AS contactWebsite,
        contact_mailing_address AS contactMailingAddress,
+       contact_notes AS contactNotes,
        outreach_email_to AS outreachEmailTo,
        outreach_email_subject AS outreachEmailSubject,
        outreach_email_text AS outreachEmailText,
@@ -706,6 +710,7 @@ export async function getOrCreateScannerProspectFromCandidate(input: {
        contact_phone AS contactPhone,
        contact_website AS contactWebsite,
        contact_mailing_address AS contactMailingAddress,
+       contact_notes AS contactNotes,
        outreach_email_to AS outreachEmailTo,
        outreach_email_subject AS outreachEmailSubject,
        outreach_email_text AS outreachEmailText,
@@ -746,6 +751,7 @@ export async function getScannerProspect(
        contact_phone AS contactPhone,
        contact_website AS contactWebsite,
        contact_mailing_address AS contactMailingAddress,
+       contact_notes AS contactNotes,
        outreach_email_to AS outreachEmailTo,
        outreach_email_subject AS outreachEmailSubject,
        outreach_email_text AS outreachEmailText,
@@ -780,6 +786,7 @@ export async function updateScannerProspectContact(input: {
   phone: string;
   website: string;
   mailingAddress?: string;
+  notes?: string;
 }): Promise<void> {
   await ensureScannerProspectsTable();
   await prisma.$executeRawUnsafe(
@@ -788,13 +795,15 @@ export async function updateScannerProspectContact(input: {
          contact_emails_json = ?,
          contact_phone = ?,
          contact_website = ?,
-         contact_mailing_address = COALESCE(?, contact_mailing_address)
+         contact_mailing_address = COALESCE(?, contact_mailing_address),
+         contact_notes = COALESCE(?, contact_notes)
      WHERE id = ?`,
     input.displayName,
     JSON.stringify(input.emails),
     input.phone || null,
     input.website || null,
     input.mailingAddress?.trim() || null,
+    input.notes ?? null,
     input.id,
   );
 }

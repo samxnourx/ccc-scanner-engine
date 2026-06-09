@@ -123,6 +123,7 @@ export default async function LeadBusinessMatchesPage(props: {
               phone: lead.phone ?? "",
               website: lead.website,
               mailingAddress: lead.address ?? "",
+              notes: lead.notes,
             }}
           />
           <MatchEmailDraftPanel

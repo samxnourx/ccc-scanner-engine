@@ -162,7 +162,10 @@ export default async function LeadDiscoveryDetailPage({ params }: Props) {
               leadDiscoveryId: lead.leadDiscoveryId,
               name: lead.targetName,
               emails: leadEmails,
+              phone: lead.phone ?? "",
+              website: lead.website ?? "",
               mailingAddress: lead.mailingAddress ?? "",
+              notes: lead.notes,
             }}
           />
           <MatchEmailDraftPanel

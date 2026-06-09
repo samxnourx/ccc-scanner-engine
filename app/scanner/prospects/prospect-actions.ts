@@ -100,6 +100,7 @@ export async function updateProspectContactAction(input: {
   phone: string;
   website: string;
   mailingAddress: string;
+  notes: string;
 }): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
   const id = Number(input.prospectId);
   const businessName = input.businessName.trim();
@@ -122,6 +123,7 @@ export async function updateProspectContactAction(input: {
       phone: input.phone.trim(),
       website: input.website.trim(),
       mailingAddress: input.mailingAddress.trim(),
+      notes: input.notes,
     });
     revalidatePath("/scanner/prospects/candidates");
     revalidatePath(`/scanner/prospects/${id}`);
