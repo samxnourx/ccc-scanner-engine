@@ -147,15 +147,6 @@ export default async function LeadDiscoveryDetailPage({ params }: Props) {
         </div>
       ) : matches.length > 0 ? (
         <>
-          <EmailEnrichmentPanel
-            targetType="lead_discovery"
-            targetId={lead.leadDiscoveryId}
-            hasEmail={Boolean(lead.outreachEmailTo)}
-            revalidatePaths={[
-              "/scanner/leads",
-              `/scanner/leads/${encodeURIComponent(lead.leadDiscoveryId)}`,
-            ]}
-          />
           <LeadContactEditor
             lead={{
               kind: "discovery",
@@ -167,6 +158,18 @@ export default async function LeadDiscoveryDetailPage({ params }: Props) {
               mailingAddress: lead.mailingAddress ?? "",
               notes: lead.notes,
             }}
+            leadNameAddon={
+              <EmailEnrichmentPanel
+                compact
+                targetType="lead_discovery"
+                targetId={lead.leadDiscoveryId}
+                hasEmail={Boolean(lead.outreachEmailTo)}
+                revalidatePaths={[
+                  "/scanner/leads",
+                  `/scanner/leads/${encodeURIComponent(lead.leadDiscoveryId)}`,
+                ]}
+              />
+            }
           />
           <MatchEmailDraftPanel
             leadDiscoveryId={lead.leadDiscoveryId}

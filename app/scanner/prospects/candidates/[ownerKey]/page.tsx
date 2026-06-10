@@ -170,19 +170,21 @@ export default async function CandidateBusinessPage({
               mailingAddress: prospect.contactMailingAddress ?? "",
               notes: prospect.contactNotes ?? "",
             }}
-          />
-
-          <EmailEnrichmentPanel
-            targetType="prospect"
-            targetId={String(prospect.id)}
-            hasEmail={contactEmails.length > 0}
-            revalidatePaths={[
-              "/scanner/prospects/candidates",
-              `/scanner/prospects/${prospect.id}`,
-              `/scanner/prospects/candidates/${encodeURIComponent(
-                ownerNameNormalized,
-              )}?source=${encodeURIComponent(source)}`,
-            ]}
+            leadNameAddon={
+              <EmailEnrichmentPanel
+                compact
+                targetType="prospect"
+                targetId={String(prospect.id)}
+                hasEmail={contactEmails.length > 0}
+                revalidatePaths={[
+                  "/scanner/prospects/candidates",
+                  `/scanner/prospects/${prospect.id}`,
+                  `/scanner/prospects/candidates/${encodeURIComponent(
+                    ownerNameNormalized,
+                  )}?source=${encodeURIComponent(source)}`,
+                ]}
+              />
+            }
           />
 
           <MatchEmailDraftPanel

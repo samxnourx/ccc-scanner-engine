@@ -12,6 +12,7 @@ type Props = {
   targetId: string;
   hasEmail: boolean;
   revalidatePaths: string[];
+  compact?: boolean;
 };
 
 function formatStamp(value: string | null): string {
@@ -32,6 +33,7 @@ export async function EmailEnrichmentPanel({
   targetId,
   hasEmail,
   revalidatePaths,
+  compact = false,
 }: Props) {
   const result = await getEmailEnrichmentResult({ type: targetType, id: targetId }).catch(
     () => null,
@@ -39,6 +41,40 @@ export async function EmailEnrichmentPanel({
   const findings = result ? parseEmailFindings(result.emailCandidatesJson) : [];
   const checked = result ? parseCheckedEmailUrls(result.checkedUrlsJson) : [];
   const selectedEmail = result?.selectedEmail ?? null;
+
+  if (compact) {
+    return (
+      <div className="mt-3 border border-[#d8d8d4] bg-[#fbfbfa] p-3 text-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">
+              Email parser
+            </h2>
+            <p className="mt-1 text-xs text-neutral-700">
+              Finds public business emails and records which URLs they came from.
+              {hasEmail
+                ? " This lead already has an email, but you can refresh the findings."
+                : " This lead needs an email before outreach."}
+            </p>
+            {result ? (
+              <p className="mt-2 text-xs text-neutral-600">
+                Last run: {formatStamp(result.updatedAt)} | Status:{" "}
+                {result.status.replace(/_/g, " ")}
+              </p>
+            ) : null}
+          </div>
+          <EmailEnrichmentRunButton
+            targetType={targetType}
+            targetId={targetId}
+            revalidatePaths={revalidatePaths}
+          />
+        </div>
+        {result ? (
+          <p className="mt-2 text-xs text-neutral-700">{result.message}</p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <section className="border border-[#b8b8b4] bg-white p-4 text-sm">

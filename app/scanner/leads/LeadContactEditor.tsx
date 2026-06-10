@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 
 import { updateLeadDiscoveryContactAction } from "@/app/actions/lead-discovery-actions";
 import { updateLeadBusinessContactAction } from "@/app/scanner/leads/lead-batch-actions";
@@ -42,9 +42,10 @@ type ProspectLeadInput = {
 
 type Props = {
   lead: BatchLeadInput | DiscoveryLeadInput | ProspectLeadInput;
+  leadNameAddon?: ReactNode;
 };
 
-export function LeadContactEditor({ lead }: Props) {
+export function LeadContactEditor({ lead, leadNameAddon }: Props) {
   const [name, setName] = useState(lead.name);
   const [emails, setEmails] = useState(lead.emails.join("\n"));
   const [phone, setPhone] = useState(lead.phone);
@@ -104,6 +105,7 @@ export function LeadContactEditor({ lead }: Props) {
             onChange={(e) => setName(e.target.value)}
             className="w-full border border-[#b8b8b4] bg-white px-3 py-2 text-sm"
           />
+          {leadNameAddon}
         </label>
         <label className="block">
           <span className="mb-1 block text-xs uppercase text-neutral-600">

@@ -104,15 +104,6 @@ export default async function LeadBusinessMatchesPage(props: {
           {canSaveLead ? (
             <SaveLeadButton batchId={batchId} businessId={businessId} />
           ) : null}
-          <EmailEnrichmentPanel
-            targetType="lead_business"
-            targetId={String(lead.id)}
-            hasEmail={leadEmails.length > 0}
-            revalidatePaths={[
-              "/scanner/leads",
-              `/scanner/leads/batches/${batchId}/businesses/${businessId}`,
-            ]}
-          />
           <LeadContactEditor
             lead={{
               kind: "batch",
@@ -125,6 +116,18 @@ export default async function LeadBusinessMatchesPage(props: {
               mailingAddress: lead.address ?? "",
               notes: lead.notes,
             }}
+            leadNameAddon={
+              <EmailEnrichmentPanel
+                compact
+                targetType="lead_business"
+                targetId={String(lead.id)}
+                hasEmail={leadEmails.length > 0}
+                revalidatePaths={[
+                  "/scanner/leads",
+                  `/scanner/leads/batches/${batchId}/businesses/${businessId}`,
+                ]}
+              />
+            }
           />
           <MatchEmailDraftPanel
             batchId={batchId}
